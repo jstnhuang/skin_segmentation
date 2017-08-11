@@ -1,0 +1,11 @@
+<launch>
+  <include file="$(find camera_pose_calibration)/launch_extrinsics/calibrate_2_camera.launch">
+    <arg name="camera1_ns" value="/camera/rgb" />
+    <arg name="camera1_image" value="image_rect_color" />
+    <arg name="camera2_ns" value="/ici/ir_camera" />
+    <arg name="camera2_image" value="image_normalized_rgb" />
+    <arg name="checker_rows" value="6" />
+    <arg name="checker_cols" value="7" />
+    <arg name="checker_size" value="0.03967" />
+  </include>
+</launch>

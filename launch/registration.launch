@@ -1,0 +1,18 @@
+<launch>
+  <include file="$(find openni2_launch)/launch/openni2.launch">
+    <arg name="depth_registration" value="true" />
+    <arg name="publish_tf" value="true" />
+  </include>
+  <group ns="/ici/ir_camera">
+    <node pkg="image_proc" type="image_proc" name="thermal_image_proc" />
+  </group>
+  <node pkg="nodelet" type="nodelet" name="thermal_nodelet_manager" args="manager" />
+  <node pkg="nodelet" type="nodelet" name="thermal_registration_nodelet" args="load depth_image_proc/register thermal_nodelet_manager">
+    <remap from="rgb/camera_info" to="/ici/ir_camera/camera_info" />
+    <remap from="depth/camera_info" to="/camera/depth/camera_info" />
+    <remap from="depth/image_rect" to="/camera/depth/image_rect" />
+  </node>
+  <!--node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1 0 0 0 world camera_link 100" /-->
+  <!--node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0.0369808 -0.02684998 0.01524325 0.0319513810 0.0221368049 -0.000686321998, 0.999244014 camera_rgb_optical_frame thermal_camera_frame 100" /-->
+  <!--node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0 -0.02684998 0 0 0 0 camera_rgb_optical_frame thermal_camera_frame 100" /-->
+</launch>
