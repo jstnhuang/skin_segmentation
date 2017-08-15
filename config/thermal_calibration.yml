@@ -8,7 +8,7 @@ camera_matrix:
 distortion_model: rational_polynomial
 distortion_coefficients:
   rows: 1
-  cols: 5
+  cols: 8
   data: [0, 0, -0.00389198, 0.03062872, 0, 0, 0, 0]
 rectification_matrix:
   rows: 3
