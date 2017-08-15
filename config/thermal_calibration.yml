@@ -1,0 +1,20 @@
+image_width: 640
+image_height: 512
+camera_name: ici/ir_camera
+camera_matrix:
+  rows: 3
+  cols: 3
+  data: [735.29, 0, 319.5, 0, 735.29, 255.5, 0, 0, 1]
+distortion_model: rational_polynomial
+distortion_coefficients:
+  rows: 1
+  cols: 5
+  data: [0, 0, -0.00389198, 0.03062872, 0, 0, 0, 0]
+rectification_matrix:
+  rows: 3
+  cols: 3
+  data: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+projection_matrix:
+  rows: 3
+  cols: 4
+  data: [735.29, 0, 319.5, 0, 0, 735.29, 255.5, 0, 0, 0, 1, 0]
