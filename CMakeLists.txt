@@ -112,6 +112,7 @@ find_package(OpenCV 2 REQUIRED)
 catkin_package(
   INCLUDE_DIRS include
   LIBRARIES
+    skin_segmentation_calibration
     skin_segmentation_projection
     skin_segmentation_snapshot
   CATKIN_DEPENDS
@@ -141,6 +142,12 @@ include_directories(
 )
 
 ## Declare a C++ library
+add_library(skin_segmentation_calibration src/calibration.cpp)
+add_dependencies(skin_segmentation_calibration ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_calibration
+  ${catkin_LIBRARIES}
+)
+
 add_library(skin_segmentation_projection src/projection.cpp)
 add_dependencies(skin_segmentation_projection ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_projection
@@ -154,21 +161,20 @@ target_link_libraries(skin_segmentation_snapshot
 )
 
 ## Declare a C++ executable
-#add_executable(skin_segmentation_registration_node src/registration.cpp)
-#set_target_properties(skin_segmentation_registration_node PROPERTIES OUTPUT_NAME registration_node PREFIX "")
-#add_dependencies(skin_segmentation_registration_node ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(skin_segmentation_registration_node
-#  ${catkin_LIBRARIES}
-#  ${OpenCV_LIBRARIES}
-#)
-#
-#add_executable(skin_segmentation_thermal_node src/thermal.cpp)
-#set_target_properties(skin_segmentation_thermal_node PROPERTIES OUTPUT_NAME thermal_node PREFIX "")
-#add_dependencies(skin_segmentation_thermal_node ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-#target_link_libraries(skin_segmentation_thermal_node
-#  ${catkin_LIBRARIES}
-#  ${OpenCV_LIBRARIES}
-#)
+add_executable(skin_segmentation_calibration_capture src/calibration_capture.cpp)
+set_target_properties(skin_segmentation_calibration_capture PROPERTIES OUTPUT_NAME calibration_capture PREFIX "")
+add_dependencies(skin_segmentation_calibration_capture ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_calibration_capture
+  ${catkin_LIBRARIES}
+)
+
+add_executable(skin_segmentation_calibration_main src/calibration_main.cpp)
+set_target_properties(skin_segmentation_calibration_main PROPERTIES OUTPUT_NAME calibration PREFIX "")
+add_dependencies(skin_segmentation_calibration_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_calibration_main
+  skin_segmentation_calibration
+  ${catkin_LIBRARIES}
+)
 
 add_executable(skin_segmentation_normalization_node src/normalization_node.cpp)
 set_target_properties(skin_segmentation_normalization_node PROPERTIES OUTPUT_NAME normalization PREFIX "")
