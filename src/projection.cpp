@@ -33,22 +33,28 @@ Projection::Projection(const CameraInfo& rgbd_info,
 
 void Projection::set_debug(bool debug) { debug_ = debug; }
 
-void Projection::ProjectRgbdOntoThermal(
+void Projection::ProjectThermalOnRgb(
     const sensor_msgs::Image::ConstPtr& rgb,
     const sensor_msgs::Image::ConstPtr& depth,
     const sensor_msgs::Image::ConstPtr& thermal,
-    sensor_msgs::Image* rgbd_projected) {
+    cv::OutputArray thermal_projected) {
   cv_bridge::CvImageConstPtr rgb_bridge =
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   cv_bridge::CvImageConstPtr thermal_bridge = cv_bridge::toCvShare(thermal);
-
   cv::Mat normalized_thermal;
   cv::normalize(thermal_bridge->image, normalized_thermal, 0, 255,
                 cv::NORM_MINMAX);
 
-  cv::Mat labels(rgb_bridge->image.rows, rgb_bridge->image.cols, CV_16UC1,
-                 cv::Scalar(0));
+  thermal_projected.create(rgb_bridge->image.rows, rgb_bridge->image.cols,
+                           CV_16UC1);
+  cv::Mat thermal_projected_mat = thermal_projected.getMat();
+  thermal_projected_mat = cv::Scalar(0);
+  cv::Mat labels_viz;
+  if (debug_) {
+    labels_viz = cv::Mat::zeros(rgb_bridge->image.rows, rgb_bridge->image.cols,
+                                CV_16UC1);
+  }
 
   // Extract all the parameters we need
   double inv_rgbd_fx = 1.0 / rgbd_model_.fx();
@@ -85,8 +91,12 @@ void Projection::ProjectRgbdOntoThermal(
         continue;
       }
 
-      labels.at<uint16_t>(rgb_row, rgb_col) =
-          normalized_thermal.at<uint16_t>(v_thermal, u_thermal);
+      thermal_projected_mat.at<uint16_t>(rgb_row, rgb_col) =
+          thermal_bridge->image.at<uint16_t>(v_thermal, u_thermal);
+      if (debug_) {
+        labels_viz.at<uint16_t>(rgb_row, rgb_col) =
+            normalized_thermal.at<uint16_t>(v_thermal, u_thermal);
+      }
     }
   }
 
@@ -101,7 +111,7 @@ void Projection::ProjectRgbdOntoThermal(
     cv::imshow("Depth", ConvertToColor(normalized_depth));
 
     cv::namedWindow("Projected labels");
-    cv::Mat labels_color = ConvertToColor(labels);
+    cv::Mat labels_color = ConvertToColor(labels_viz);
     cv::imshow("Projected labels", labels_color);
 
     cv::Mat normalized_thermal_color = ConvertToColor(normalized_thermal);

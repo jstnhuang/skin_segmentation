@@ -16,10 +16,10 @@ class Projection {
 
   void set_debug(bool debug);
 
-  void ProjectRgbdOntoThermal(const sensor_msgs::Image::ConstPtr& rgb,
-                              const sensor_msgs::Image::ConstPtr& depth,
-                              const sensor_msgs::Image::ConstPtr& thermal,
-                              sensor_msgs::Image* rgbd_projected);
+  void ProjectThermalOnRgb(const sensor_msgs::Image::ConstPtr& rgb,
+                           const sensor_msgs::Image::ConstPtr& depth,
+                           const sensor_msgs::Image::ConstPtr& thermal,
+                           cv::OutputArray thermal_projected);
 
  private:
   sensor_msgs::CameraInfo rgbd_info_;
