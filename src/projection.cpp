@@ -103,7 +103,6 @@ void Projection::ProjectRgbdOntoThermal(
 
   cv::namedWindow("Projected labels");
   cv::Mat labels_color = ConvertToColor(labels);
-  // cv::normalize(labels_color, labels_color, 0, 255, cv::NORM_MINMAX);
   cv::imshow("Projected labels", labels_color);
 
   cv::Mat normalized_thermal_color = ConvertToColor(normalized_thermal);
