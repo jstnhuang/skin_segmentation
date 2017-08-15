@@ -1,3 +1,7 @@
+<!--
+  Records thermal and RGB cameras to a bag file, for calibration purposes.
+  We recommend using the calibration_capture utility in this package instead, which only saves image pairs with successful chessboard detections.
+-->
 <launch>
   <arg name="output" default="/home/jstn/calibration_images" />
   <node pkg="image_view" type="image_view" name="thermal_image_view">
