@@ -4,6 +4,7 @@
 #include <string>
 
 #include "opencv2/core/core.hpp"
+#include "opencv2/imgproc/imgproc.hpp"
 
 namespace skinseg {
 
@@ -124,6 +125,14 @@ void ReorderChessCorners(const Corners& corners_in, const cv::Size& size,
   } else if (angle >= kAngle45 && angle < kAngle135) {
     RotateCorners270(corners_in, size.width, corners_out);
   }
+}
+
+cv::Mat ConvertToColor(cv::Mat in) {
+  cv::Mat eight_bit;
+  in.convertTo(eight_bit, CV_8UC3);
+  cv::Mat color;
+  cv::cvtColor(eight_bit, color, cv::COLOR_GRAY2RGB);
+  return color;
 }
 }  // namespace skinseg
 

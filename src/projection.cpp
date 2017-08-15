@@ -10,6 +10,8 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
+#include "skin_segmentation/opencv_utils.h"
+
 using depth_image_proc::DepthTraits;
 using image_geometry::PinholeCameraModel;
 using sensor_msgs::CameraInfo;
@@ -24,14 +26,6 @@ Projection::Projection(const CameraInfo& rgbd_info,
       thermal_model_() {
   rgbd_model_.fromCameraInfo(rgbd_info);
   thermal_model_.fromCameraInfo(thermal_info);
-}
-
-cv::Mat ConvertToColor(cv::Mat in) {
-  cv::Mat eight_bit;
-  in.convertTo(eight_bit, CV_8UC3);
-  cv::Mat color;
-  cv::cvtColor(eight_bit, color, cv::COLOR_GRAY2RGB);
-  return color;
 }
 
 void Projection::ProjectRgbdPixelToThermal(
@@ -67,7 +61,7 @@ void Projection::ProjectRgbdOntoThermal(
 
   Eigen::Vector3d translation;
   ros::param::param<double>("thermal_x", translation.x(), 0.00021494608);
-  ros::param::param<double>("thermal_y", translation.y(), -0.03);
+  ros::param::param<double>("thermal_y", translation.y(), -0.035);
   ros::param::param<double>("thermal_z", translation.z(), 0.012);
   Eigen::Affine3d thermal_in_rgb;
   thermal_in_rgb.setIdentity();
@@ -88,13 +82,6 @@ void Projection::ProjectRgbdOntoThermal(
   cv::Mat output;
   cv::cvtColor(thermal_bridge->image, output, cv::COLOR_GRAY2BGR);
   cv::Mat_<cv::Vec3b> _output = output;
-
-  // Start with a special case: -0.5, -0.5 (upper left corner of upper left
-  // pixel).
-  // double row_start;
-  // double col_start;
-  // ProjectRgbdPixelToThermal(-0.5, -0.5, depth_bridge, rgb_in_thermal,
-  // &row_start, &col_start);
 
   for (int rgb_row = 0; rgb_row < rgb_bridge->image.rows; ++rgb_row) {
     for (int rgb_col = 0; rgb_col < rgb_bridge->image.cols; ++rgb_col) {
