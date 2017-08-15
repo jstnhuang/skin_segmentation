@@ -11,7 +11,8 @@ namespace skinseg {
 class Projection {
  public:
   Projection(const sensor_msgs::CameraInfo& rgbd_info,
-             const sensor_msgs::CameraInfo& thermal_info);
+             const sensor_msgs::CameraInfo& thermal_info,
+             const Eigen::Affine3d& rgb_in_thermal);
 
   void ProjectRgbdOntoThermal(const sensor_msgs::Image::ConstPtr& rgb,
                               const sensor_msgs::Image::ConstPtr& depth,
@@ -21,6 +22,7 @@ class Projection {
  private:
   sensor_msgs::CameraInfo rgbd_info_;
   sensor_msgs::CameraInfo thermal_info_;
+  Eigen::Affine3d rgb_in_thermal_;
   image_geometry::PinholeCameraModel rgbd_model_;
   image_geometry::PinholeCameraModel thermal_model_;
 };

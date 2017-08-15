@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include "Eigen/Dense"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -47,6 +48,19 @@ int main(int argc, char** argv) {
   rgbd_camera_info.D[3] = 0;
   rgbd_camera_info.D[4] = 0;
 
+  Eigen::Vector3d translation;
+  ros::param::param<double>("thermal_x", translation.x(), 0.00021494608);
+  ros::param::param<double>("thermal_y", translation.y(), -0.035);
+  ros::param::param<double>("thermal_z", translation.z(), 0.012);
+  Eigen::Affine3d thermal_in_rgb;
+  thermal_in_rgb.setIdentity();
+  Eigen::Matrix3d rotation;
+  rotation << 0.99989849, -0.00030364806, -0.004522502, 0.00056054816,
+      0.99789572, 0.0638135, 0.004517816, -0.063812457, 0.99781871;
+  thermal_in_rgb.translate(translation);
+  thermal_in_rgb.rotate(rotation);
+  Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
+
   while (ros::ok()) {
     sensor_msgs::CameraInfo rgbd_camera_info = *data.rgbd_camera_info;
     double rf;
@@ -63,7 +77,8 @@ int main(int argc, char** argv) {
     thermal_camera_info.P[0] = tf;
     thermal_camera_info.P[5] = tf;
 
-    skinseg::Projection projection(rgbd_camera_info, thermal_camera_info);
+    skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
+                                   rgb_in_thermal);
     sensor_msgs::Image output;
     projection.ProjectRgbdOntoThermal(data.color, data.depth, data.thermal,
                                       &output);

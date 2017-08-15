@@ -19,9 +19,11 @@ using sensor_msgs::Image;
 
 namespace skinseg {
 Projection::Projection(const CameraInfo& rgbd_info,
-                       const CameraInfo& thermal_info)
+                       const CameraInfo& thermal_info,
+                       const Eigen::Affine3d& rgb_in_thermal)
     : rgbd_info_(rgbd_info),
       thermal_info_(thermal_info),
+      rgb_in_thermal_(rgb_in_thermal),
       rgbd_model_(),
       thermal_model_() {
   rgbd_model_.fromCameraInfo(rgbd_info);
@@ -41,19 +43,6 @@ void Projection::ProjectRgbdOntoThermal(
   cv::Mat normalized_thermal;
   cv::normalize(thermal_bridge->image, normalized_thermal, 0, 255,
                 cv::NORM_MINMAX);
-
-  Eigen::Vector3d translation;
-  ros::param::param<double>("thermal_x", translation.x(), 0.00021494608);
-  ros::param::param<double>("thermal_y", translation.y(), -0.035);
-  ros::param::param<double>("thermal_z", translation.z(), 0.012);
-  Eigen::Affine3d thermal_in_rgb;
-  thermal_in_rgb.setIdentity();
-  Eigen::Matrix3d rotation;
-  rotation << 0.99989849, -0.00030364806, -0.004522502, 0.00056054816,
-      0.99789572, 0.0638135, 0.004517816, -0.063812457, 0.99781871;
-  thermal_in_rgb.translate(translation);
-  thermal_in_rgb.rotate(rotation);
-  Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
   cv::Mat labels(rgb_bridge->image.rows, rgb_bridge->image.cols, CV_16UC1,
                  cv::Scalar(0));
@@ -81,7 +70,7 @@ void Projection::ProjectRgbdOntoThermal(
                    depth;
       // clang-format on
 
-      Eigen::Vector3d xyz_thermal = rgb_in_thermal * xyz_depth;
+      Eigen::Vector3d xyz_thermal = rgb_in_thermal_ * xyz_depth;
       double inv_Z = 1.0 / xyz_thermal.z();
       int u_thermal = (thermal_fx * xyz_thermal.x() + thermal_Tx) * inv_Z +
                       thermal_cx + 0.5;
