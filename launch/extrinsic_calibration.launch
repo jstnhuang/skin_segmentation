@@ -1,3 +1,5 @@
+<!-- Launch file for doing calibration with camera_pose_calibration.
+     In practice, we opted to use our own calibration routine. -->
 <launch>
   <include file="$(find camera_pose_calibration)/launch_extrinsics/calibrate_2_camera.launch">
     <arg name="camera1_ns" value="/camera/rgb" />
