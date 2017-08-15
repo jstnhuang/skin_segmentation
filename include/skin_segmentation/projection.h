@@ -14,6 +14,8 @@ class Projection {
              const sensor_msgs::CameraInfo& thermal_info,
              const Eigen::Affine3d& rgb_in_thermal);
 
+  void set_debug(bool debug);
+
   void ProjectRgbdOntoThermal(const sensor_msgs::Image::ConstPtr& rgb,
                               const sensor_msgs::Image::ConstPtr& depth,
                               const sensor_msgs::Image::ConstPtr& thermal,
@@ -25,6 +27,7 @@ class Projection {
   Eigen::Affine3d rgb_in_thermal_;
   image_geometry::PinholeCameraModel rgbd_model_;
   image_geometry::PinholeCameraModel thermal_model_;
+  bool debug_;
 };
 }  // namespace skinseg
 

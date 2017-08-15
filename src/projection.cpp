@@ -25,10 +25,13 @@ Projection::Projection(const CameraInfo& rgbd_info,
       thermal_info_(thermal_info),
       rgb_in_thermal_(rgb_in_thermal),
       rgbd_model_(),
-      thermal_model_() {
+      thermal_model_(),
+      debug_(false) {
   rgbd_model_.fromCameraInfo(rgbd_info);
   thermal_model_.fromCameraInfo(thermal_info);
 }
+
+void Projection::set_debug(bool debug) { debug_ = debug; }
 
 void Projection::ProjectRgbdOntoThermal(
     const sensor_msgs::Image::ConstPtr& rgb,
@@ -87,30 +90,33 @@ void Projection::ProjectRgbdOntoThermal(
     }
   }
 
-  cv::namedWindow("RGB");
-  cv::imshow("RGB", rgb_bridge->image);
+  if (debug_) {
+    cv::namedWindow("RGB");
+    cv::imshow("RGB", rgb_bridge->image);
 
-  cv::namedWindow("Depth");
-  cv::Mat normalized_depth;
-  cv::normalize(depth_bridge->image, normalized_depth, 0, 255, cv::NORM_MINMAX);
-  cv::imshow("Depth", ConvertToColor(normalized_depth));
+    cv::namedWindow("Depth");
+    cv::Mat normalized_depth;
+    cv::normalize(depth_bridge->image, normalized_depth, 0, 255,
+                  cv::NORM_MINMAX);
+    cv::imshow("Depth", ConvertToColor(normalized_depth));
 
-  cv::namedWindow("Projected labels");
-  cv::Mat labels_color = ConvertToColor(labels);
-  cv::imshow("Projected labels", labels_color);
+    cv::namedWindow("Projected labels");
+    cv::Mat labels_color = ConvertToColor(labels);
+    cv::imshow("Projected labels", labels_color);
 
-  cv::Mat normalized_thermal_color = ConvertToColor(normalized_thermal);
-  cv::namedWindow("Normalized thermal");
-  cv::imshow("Normalized thermal", normalized_thermal_color);
+    cv::Mat normalized_thermal_color = ConvertToColor(normalized_thermal);
+    cv::namedWindow("Normalized thermal");
+    cv::imshow("Normalized thermal", normalized_thermal_color);
 
-  double alpha;
-  ros::param::param("overlay_alpha", alpha, 0.5);
-  cv::Mat overlay;
-  cv::addWeighted(labels_color, alpha, rgb_bridge->image, 1 - alpha, 0.0,
-                  overlay);
-  cv::namedWindow("Overlay");
-  cv::imshow("Overlay", overlay);
+    double alpha;
+    ros::param::param("overlay_alpha", alpha, 0.5);
+    cv::Mat overlay;
+    cv::addWeighted(labels_color, alpha, rgb_bridge->image, 1 - alpha, 0.0,
+                    overlay);
+    cv::namedWindow("Overlay");
+    cv::imshow("Overlay", overlay);
 
-  cv::waitKey();
+    cv::waitKey();
+  }
 }
 }  // namespace skinseg
