@@ -1,0 +1,10 @@
+<launch>
+  <arg name="output" default="/home/jstn/calibration_images" />
+  <node pkg="image_view" type="image_view" name="thermal_image_view">
+    <remap from="image" to="/ici/ir_camera/image_normalized_rgb" />
+  </node>
+  <node pkg="image_view" type="image_view" name="rgb_image_view">
+    <remap from="image" to="/camera/rgb/image_rect_color" />
+  </node>
+  <node pkg="rosbag" type="record" name="calibration_data_rosbag" args="/ici/ir_camera/image_normalized_rgb /camera/rgb/image_rect_color -O $(arg output)" />
+</launch>
