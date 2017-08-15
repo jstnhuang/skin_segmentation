@@ -25,27 +25,45 @@ int main(int argc, char** argv) {
   }
   skinseg::RgbdtData data = snapshot.data();
 
-  // Hard-coded RGB camera info
+  // Hard-coded camera infos
   sensor_msgs::CameraInfo rgbd_camera_info = *data.rgbd_camera_info;
+  sensor_msgs::CameraInfo thermal_camera_info = *data.thermal_camera_info;
+  thermal_camera_info.distortion_model = "rational_polynomial";
+  thermal_camera_info.D.resize(8);
+  thermal_camera_info.D[0] = 0;
+  thermal_camera_info.D[1] = 0;
+  thermal_camera_info.D[2] = -0.00389198;
+  thermal_camera_info.D[3] = 0.03062872;
+  thermal_camera_info.D[4] = 0;
+  thermal_camera_info.D[5] = 0;
+  thermal_camera_info.D[6] = 0;
+  thermal_camera_info.D[7] = 0;
+
+  rgbd_camera_info.distortion_model = "plumb_bob";
   rgbd_camera_info.D.resize(5);
-  rgbd_camera_info.D[0] = 0.062083;
-  rgbd_camera_info.D[1] = -0.128651;
-  rgbd_camera_info.D[2] = -0.003100;
-  rgbd_camera_info.D[3] = 0.012476;
-
-  rgbd_camera_info.K[0] = 565.829036;
-  rgbd_camera_info.K[2] = 335.955730;
-  rgbd_camera_info.K[4] = 564.944907;
-  rgbd_camera_info.K[5] = 239.333909;
-
-  rgbd_camera_info.P[0] = 567.424805;
-  rgbd_camera_info.P[2] = 342.737757;
-  rgbd_camera_info.P[5] = 572.887207;
-  rgbd_camera_info.P[6] = 237.647368;
-
-  skinseg::Projection projection(rgbd_camera_info, *data.thermal_camera_info);
+  rgbd_camera_info.D[0] = 0;
+  rgbd_camera_info.D[1] = 0;
+  rgbd_camera_info.D[2] = 0;
+  rgbd_camera_info.D[3] = 0;
+  rgbd_camera_info.D[4] = 0;
 
   while (ros::ok()) {
+    sensor_msgs::CameraInfo rgbd_camera_info = *data.rgbd_camera_info;
+    double rf;
+    ros::param::param<double>("rgbd_f", rf, 570.34);
+    rgbd_camera_info.K[0] = rf;
+    rgbd_camera_info.K[4] = rf;
+    rgbd_camera_info.P[0] = rf;
+    rgbd_camera_info.P[5] = rf;
+
+    double tf;
+    ros::param::param<double>("thermal_f", tf, 735.29);
+    thermal_camera_info.K[0] = tf;
+    thermal_camera_info.K[4] = tf;
+    thermal_camera_info.P[0] = tf;
+    thermal_camera_info.P[5] = tf;
+
+    skinseg::Projection projection(rgbd_camera_info, thermal_camera_info);
     sensor_msgs::Image output;
     projection.ProjectRgbdOntoThermal(data.color, data.depth, data.thermal,
                                       &output);
