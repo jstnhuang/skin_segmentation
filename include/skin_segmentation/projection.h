@@ -13,12 +13,7 @@ class Projection {
   Projection(const sensor_msgs::CameraInfo& rgbd_info,
              const sensor_msgs::CameraInfo& thermal_info);
 
-  void ProjectThermalOntoRgbd(const sensor_msgs::Image::ConstPtr& color,
-                              const sensor_msgs::Image::ConstPtr& depth,
-                              const sensor_msgs::Image::ConstPtr& thermal,
-                              sensor_msgs::Image* thermal_projected);
-
-  void ProjectRgbdPixelToThermal(double rgbd_row, double rgbd_col,
+  void ProjectRgbdPixelToThermal(int rgbd_row, int rgbd_col,
                                  const cv_bridge::CvImageConstPtr& depth_bridge,
                                  const Eigen::Affine3d& rgb_in_thermal,
                                  double* thermal_row, double* thermal_col);
