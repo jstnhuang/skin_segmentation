@@ -12,7 +12,7 @@
     <remap from="depth/camera_info" to="/camera/depth/camera_info" />
     <remap from="depth/image_rect" to="/camera/depth/image_rect" />
   </node>
-  <!--node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1 0 0 0 world camera_link 100" /-->
-  <!--node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0.0369808 -0.02684998 0.01524325 0.0319513810 0.0221368049 -0.000686321998, 0.999244014 camera_rgb_optical_frame thermal_camera_frame 100" /-->
-  <!--node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0 -0.02684998 0 0 0 0 camera_rgb_optical_frame thermal_camera_frame 100" /-->
+  <node pkg="skin_segmentation" type="normalization" name="thermal_normalization" />
+  <node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1 0 0 0 world camera_link 100" />
+  <node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0.00021494608 -0.035 0.012 -0.0319218727 -0.00226672402 0.000216168283 0.999448448 camera_rgb_optical_frame thermal_camera_frame 100" />
 </launch>

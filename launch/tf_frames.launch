@@ -1,6 +1,0 @@
-<launch>
-  <node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1 0 0 0 world camera_link 100" />
-  <!--node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0 0.20 0 0.0319513810 0.0221368049 -0.000686321998 0.999244014 camera_rgb_optical_frame thermal_camera_frame 100" /-->
-  <!--node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="-0.05 0.06 0 0.0319513810 0.0221368049 -0.000686321998 0.999244014 camera_rgb_optical_frame thermal_camera_frame 100" /-->
-  <node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="-0.05 0.1 0 0.0319513810 0.0221368049 -0.000686321998, 0.999244014 camera_rgb_optical_frame thermal_camera_frame 100" />
-</launch>
