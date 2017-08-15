@@ -28,27 +28,6 @@ Projection::Projection(const CameraInfo& rgbd_info,
   thermal_model_.fromCameraInfo(thermal_info);
 }
 
-void Projection::ProjectRgbdPixelToThermal(
-    int rgbd_row, int rgbd_col, const cv_bridge::CvImageConstPtr& depth_bridge,
-    const Eigen::Affine3d& rgb_in_thermal, double* thermal_row,
-    double* thermal_col) {
-  uint16_t raw_depth = depth_bridge->image.at<uint16_t>(rgbd_row, rgbd_col);
-  double depth = DepthTraits<uint16_t>::toMeters(raw_depth);
-  cv::Point3d xyz_rgb = rgbd_model_.projectPixelTo3dRay(
-      rgbd_model_.rectifyPoint(cv::Point2d(rgbd_col, rgbd_row)));
-  xyz_rgb *= depth;
-  Eigen::Vector3d xyz_in_rgb;
-  xyz_in_rgb << xyz_rgb.x, xyz_rgb.y, xyz_rgb.z;
-
-  Eigen::Vector3d xyz_in_thermal = rgb_in_thermal * xyz_in_rgb;
-
-  cv::Point2d uv_thermal = thermal_model_.project3dToPixel(
-      cv::Point3d(xyz_in_thermal.x(), xyz_in_thermal.y(), xyz_in_thermal.z()));
-  cv::Point2d uv_thermal_unrect = thermal_model_.unrectifyPoint(uv_thermal);
-  *thermal_row = uv_thermal_unrect.y;
-  *thermal_col = uv_thermal_unrect.x;
-}
-
 void Projection::ProjectRgbdOntoThermal(
     const sensor_msgs::Image::ConstPtr& rgb,
     const sensor_msgs::Image::ConstPtr& depth,
@@ -58,6 +37,10 @@ void Projection::ProjectRgbdOntoThermal(
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   cv_bridge::CvImageConstPtr thermal_bridge = cv_bridge::toCvShare(thermal);
+
+  cv::Mat normalized_thermal;
+  cv::normalize(thermal_bridge->image, normalized_thermal, 0, 255,
+                cv::NORM_MINMAX);
 
   Eigen::Vector3d translation;
   ros::param::param<double>("thermal_x", translation.x(), 0.00021494608);
@@ -72,49 +55,57 @@ void Projection::ProjectRgbdOntoThermal(
   thermal_in_rgb.rotate(rotation);
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
-  // The thermal image is higher resolution than the RGBD image, and it has a
-  // higher focal length. So simply projecting the RGBD image onto the thermal
-  // image will leave regular gaps in the image. To address this, we compute the
-  // projections through the corners of each pixel rather than just the
-  // projection of the center of the pixel.
-  cv::Mat_<cv::Vec3b> _rgb = rgb_bridge->image;
+  cv::Mat labels(rgb_bridge->image.rows, rgb_bridge->image.cols, CV_16UC1,
+                 cv::Scalar(0));
 
-  cv::Mat output;
-  cv::cvtColor(thermal_bridge->image, output, cv::COLOR_GRAY2BGR);
-  cv::Mat_<cv::Vec3b> _output = output;
+  // Extract all the parameters we need
+  double inv_rgbd_fx = 1.0 / rgbd_model_.fx();
+  double inv_rgbd_fy = 1.0 / rgbd_model_.fy();
+  double rgbd_cx = rgbd_model_.cx(), rgbd_cy = rgbd_model_.cy();
+  double rgbd_Tx = rgbd_model_.Tx(), rgbd_Ty = rgbd_model_.Ty();
+  double thermal_fx = thermal_model_.fx(), thermal_fy = thermal_model_.fy();
+  double thermal_cx = thermal_model_.cx(), thermal_cy = thermal_model_.cy();
+  double thermal_Tx = thermal_model_.Tx(), thermal_Ty = thermal_model_.Ty();
 
   for (int rgb_row = 0; rgb_row < rgb_bridge->image.rows; ++rgb_row) {
     for (int rgb_col = 0; rgb_col < rgb_bridge->image.cols; ++rgb_col) {
-      double p_row, p_col;
-      ProjectRgbdPixelToThermal(rgb_row, rgb_col, depth_bridge, rgb_in_thermal,
-                                &p_row, &p_col);
-
-      // uint16_t raw_depth = depth_bridge->image.at<uint16_t>(rgb_row,
-      // rgb_col);
-      // double depth = DepthTraits<uint16_t>::toMeters(raw_depth);
-
-      int p_row_i = round(p_row);
-      int p_col_i = round(p_col);
-      if (p_row_i < 0 || p_row_i >= _output.rows || p_col_i < 0 ||
-          p_col_i >= output.cols) {
+      uint16_t raw_depth = depth_bridge->image.at<uint16_t>(rgb_row, rgb_col);
+      if (raw_depth == 0) {
         continue;
       }
-      _output(p_row_i, p_col_i)[0] = _rgb(rgb_row, rgb_col)[0];
-      _output(p_row_i, p_col_i)[1] = _rgb(rgb_row, rgb_col)[1];
-      _output(p_row_i, p_col_i)[2] = _rgb(rgb_row, rgb_col)[2];
+      double depth = DepthTraits<uint16_t>::toMeters(raw_depth);
+      Eigen::Vector3d xyz_depth;
+      // clang-format off
+      xyz_depth << ((rgb_col - rgbd_cx) * depth - rgbd_Tx) * inv_rgbd_fx,
+                   ((rgb_row - rgbd_cy) * depth - rgbd_Ty) * inv_rgbd_fy,
+                   depth;
+      // clang-format on
+
+      Eigen::Vector3d xyz_thermal = rgb_in_thermal * xyz_depth;
+      double inv_Z = 1.0 / xyz_thermal.z();
+      int u_thermal = (thermal_fx * xyz_thermal.x() + thermal_Tx) * inv_Z +
+                      thermal_cx + 0.5;
+      int v_thermal = (thermal_fy * xyz_thermal.y() + thermal_Ty) * inv_Z +
+                      thermal_cy + 0.5;
+
+      if (u_thermal < 0 || u_thermal >= thermal_bridge->image.cols ||
+          v_thermal < 0 || v_thermal >= thermal_bridge->image.rows) {
+        continue;
+      }
+
+      labels.at<uint16_t>(rgb_row, rgb_col) =
+          normalized_thermal.at<uint16_t>(v_thermal, u_thermal);
     }
   }
 
-  output = _output;
   cv::namedWindow("RGB");
   cv::imshow("RGB", rgb_bridge->image);
 
-  cv::namedWindow("Projected RGB");
-  cv::imshow("Projected RGB", output);
+  cv::namedWindow("Projected labels");
+  cv::Mat labels_color = ConvertToColor(labels);
+  // cv::normalize(labels_color, labels_color, 0, 255, cv::NORM_MINMAX);
+  cv::imshow("Projected labels", labels_color);
 
-  cv::Mat normalized_thermal;
-  cv::normalize(thermal_bridge->image, normalized_thermal, 0, 255,
-                cv::NORM_MINMAX);
   cv::Mat normalized_thermal_color = ConvertToColor(normalized_thermal);
   cv::namedWindow("Normalized thermal");
   cv::imshow("Normalized thermal", normalized_thermal_color);
@@ -122,7 +113,7 @@ void Projection::ProjectRgbdOntoThermal(
   double alpha;
   ros::param::param("overlay_alpha", alpha, 0.5);
   cv::Mat overlay;
-  cv::addWeighted(output, alpha, normalized_thermal_color, 1 - alpha, 0.0,
+  cv::addWeighted(labels_color, alpha, rgb_bridge->image, 1 - alpha, 0.0,
                   overlay);
   cv::namedWindow("Overlay");
   cv::imshow("Overlay", overlay);
