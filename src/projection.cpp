@@ -90,6 +90,11 @@ void Projection::ProjectRgbdOntoThermal(
   cv::namedWindow("RGB");
   cv::imshow("RGB", rgb_bridge->image);
 
+  cv::namedWindow("Depth");
+  cv::Mat normalized_depth;
+  cv::normalize(depth_bridge->image, normalized_depth, 0, 255, cv::NORM_MINMAX);
+  cv::imshow("Depth", ConvertToColor(normalized_depth));
+
   cv::namedWindow("Projected labels");
   cv::Mat labels_color = ConvertToColor(labels);
   cv::imshow("Projected labels", labels_color);
