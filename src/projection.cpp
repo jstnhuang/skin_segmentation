@@ -103,14 +103,12 @@ void Projection::ProjectThermalOnRgb(
 
     cv::namedWindow("Projected labels");
     cv::Mat projected_labels;
-    cv::Mat mask = (thermal_projected_mat != 0);
-    cv::Mat mask2;
-    cv::threshold(mask, mask2, 0.5, 255, cv::THRESH_BINARY);
+    cv::Mat mask = NonZeroMask(thermal_projected_mat);
 
     cv::namedWindow("Mask");
-    cv::imshow("Mask", mask2);
+    cv::imshow("Mask", mask);
     cv::normalize(thermal_projected_mat, projected_labels, 0, 255,
-                  cv::NORM_MINMAX, -1, mask2);
+                  cv::NORM_MINMAX, -1, mask);
     cv::Mat labels_color = ConvertToColor(projected_labels);
     cv::imshow("Projected labels", labels_color);
 

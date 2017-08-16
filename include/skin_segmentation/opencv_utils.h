@@ -134,6 +134,14 @@ cv::Mat ConvertToColor(cv::Mat in) {
   cv::cvtColor(eight_bit, color, cv::COLOR_GRAY2RGB);
   return color;
 }
+
+// Returns a mask of non-zero values in the input matrix.
+cv::Mat NonZeroMask(cv::Mat in) {
+  cv::Mat mask = (in != 0);
+  cv::Mat mask2;
+  cv::threshold(mask, mask2, 0.5, 255, cv::THRESH_BINARY);
+  return mask2;
+}
 }  // namespace skinseg
 
 #endif  // _SKINSEG_OPENCV_UTILS_H_
