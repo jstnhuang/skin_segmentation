@@ -11,7 +11,7 @@
 #include "skin_segmentation/thresholding.h"
 
 void PrintUsage() {
-  std::cout << "Usage: rosrun skin_segmentation projection demo ~/snapshot.bag"
+  std::cout << "Usage: rosrun skin_segmentation projection_demo ~/snapshot.bag"
             << std::endl;
 }
 
@@ -62,31 +62,28 @@ int main(int argc, char** argv) {
   thermal_in_rgb.rotate(rotation);
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
-  while (ros::ok()) {
-    sensor_msgs::CameraInfo rgbd_camera_info = *data.rgbd_camera_info;
-    double rf;
-    ros::param::param<double>("rgbd_f", rf, 570.34);
-    rgbd_camera_info.K[0] = rf;
-    rgbd_camera_info.K[4] = rf;
-    rgbd_camera_info.P[0] = rf;
-    rgbd_camera_info.P[5] = rf;
+  double rf;
+  ros::param::param<double>("rgbd_f", rf, 570.34);
+  rgbd_camera_info.K[0] = rf;
+  rgbd_camera_info.K[4] = rf;
+  rgbd_camera_info.P[0] = rf;
+  rgbd_camera_info.P[5] = rf;
 
-    double tf;
-    ros::param::param<double>("thermal_f", tf, 735.29);
-    thermal_camera_info.K[0] = tf;
-    thermal_camera_info.K[4] = tf;
-    thermal_camera_info.P[0] = tf;
-    thermal_camera_info.P[5] = tf;
+  double tf;
+  ros::param::param<double>("thermal_f", tf, 735.29);
+  thermal_camera_info.K[0] = tf;
+  thermal_camera_info.K[4] = tf;
+  thermal_camera_info.P[0] = tf;
+  thermal_camera_info.P[5] = tf;
 
-    skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
-                                   rgb_in_thermal);
-    projection.set_debug(true);
-    cv::Mat projected_thermal;
-    projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
-                                   projected_thermal);
-    skinseg::Thresholding thresholding;
-    thresholding.TryThresholds(projected_thermal);
-  }
+  skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
+                                 rgb_in_thermal);
+  projection.set_debug(true);
+  cv::Mat projected_thermal;
+  projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
+                                 projected_thermal);
+  skinseg::Thresholding thresholding;
+  thresholding.TryThresholds(projected_thermal);
 
   return 0;
 }
