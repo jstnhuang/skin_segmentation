@@ -83,6 +83,7 @@ int main(int argc, char** argv) {
     cv::Mat projected_thermal;
     projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
                                    projected_thermal);
+    projection.TryThresholds(projected_thermal);
   }
 
   return 0;

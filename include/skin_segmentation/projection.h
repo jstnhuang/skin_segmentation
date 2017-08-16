@@ -20,14 +20,20 @@ class Projection {
                            const sensor_msgs::Image::ConstPtr& depth,
                            const sensor_msgs::Image::ConstPtr& thermal,
                            cv::OutputArray thermal_projected);
+  void TryThresholds(cv::InputArray thermal);
 
  private:
+  static void onTrack(int value, void* ptr);
+
   sensor_msgs::CameraInfo rgbd_info_;
   sensor_msgs::CameraInfo thermal_info_;
   Eigen::Affine3d rgb_in_thermal_;
   image_geometry::PinholeCameraModel rgbd_model_;
   image_geometry::PinholeCameraModel thermal_model_;
   bool debug_;
+
+  cv::Mat thresholded_thermal_;
+  cv::Mat thresholded_thermal_normalized_;
 };
 }  // namespace skinseg
 
