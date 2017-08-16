@@ -80,9 +80,9 @@ int main(int argc, char** argv) {
     skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
                                    rgb_in_thermal);
     projection.set_debug(true);
-    cv::Mat output;
+    cv::Mat projected_thermal;
     projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
-                                   output);
+                                   projected_thermal);
   }
 
   return 0;
