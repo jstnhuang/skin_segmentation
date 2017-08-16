@@ -14,12 +14,14 @@ class Projection {
              const sensor_msgs::CameraInfo& thermal_info,
              const Eigen::Affine3d& rgb_in_thermal);
 
-  void set_debug(bool debug);
-
   void ProjectThermalOnRgb(const sensor_msgs::Image::ConstPtr& rgb,
                            const sensor_msgs::Image::ConstPtr& depth,
                            const sensor_msgs::Image::ConstPtr& thermal,
                            cv::OutputArray thermal_projected);
+  // Return -1, -1 if invalid.
+  cv::Point2d GetThermalPixel(const cv::Point2d& rgb_pt, bool debug = false);
+
+  static void MouseCallback(int event, int x, int y, int flags, void* data);
 
  private:
   sensor_msgs::CameraInfo rgbd_info_;
@@ -27,7 +29,8 @@ class Projection {
   Eigen::Affine3d rgb_in_thermal_;
   image_geometry::PinholeCameraModel rgbd_model_;
   image_geometry::PinholeCameraModel thermal_model_;
-  bool debug_;
+  cv::Mat depth_image_;
+  cv::Mat normalized_thermal_image_;
 };
 }  // namespace skinseg
 
