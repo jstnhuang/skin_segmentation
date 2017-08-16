@@ -50,11 +50,6 @@ void Projection::ProjectThermalOnRgb(
                            CV_16UC1);
   cv::Mat thermal_projected_mat = thermal_projected.getMat();
   thermal_projected_mat = cv::Scalar(0);
-  cv::Mat labels_viz;
-  if (debug_) {
-    labels_viz = cv::Mat::zeros(rgb_bridge->image.rows, rgb_bridge->image.cols,
-                                CV_16UC1);
-  }
 
   // Extract all the parameters we need
   double inv_rgbd_fx = 1.0 / rgbd_model_.fx();
@@ -93,10 +88,6 @@ void Projection::ProjectThermalOnRgb(
 
       thermal_projected_mat.at<uint16_t>(rgb_row, rgb_col) =
           thermal_bridge->image.at<uint16_t>(v_thermal, u_thermal);
-      if (debug_) {
-        labels_viz.at<uint16_t>(rgb_row, rgb_col) =
-            normalized_thermal.at<uint16_t>(v_thermal, u_thermal);
-      }
     }
   }
 
@@ -111,7 +102,16 @@ void Projection::ProjectThermalOnRgb(
     cv::imshow("Depth", ConvertToColor(normalized_depth));
 
     cv::namedWindow("Projected labels");
-    cv::Mat labels_color = ConvertToColor(labels_viz);
+    cv::Mat projected_labels;
+    cv::Mat mask = (thermal_projected_mat != 0);
+    cv::Mat mask2;
+    cv::threshold(mask, mask2, 0.5, 255, cv::THRESH_BINARY);
+
+    cv::namedWindow("Mask");
+    cv::imshow("Mask", mask2);
+    cv::normalize(thermal_projected_mat, projected_labels, 0, 255,
+                  cv::NORM_MINMAX, -1, mask2);
+    cv::Mat labels_color = ConvertToColor(projected_labels);
     cv::imshow("Projected labels", labels_color);
 
     cv::Mat normalized_thermal_color = ConvertToColor(normalized_thermal);
