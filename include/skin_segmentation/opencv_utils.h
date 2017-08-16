@@ -136,8 +136,8 @@ cv::Mat ConvertToColor(cv::Mat in) {
 }
 
 // Returns a mask of non-zero values in the input matrix.
-cv::Mat NonZeroMask(cv::Mat in) {
-  cv::Mat mask = (in != 0);
+cv::Mat NonZeroMask(cv::InputArray in) {
+  cv::Mat mask = (in.getMat() != 0);
   cv::Mat mask2;
   cv::threshold(mask, mask2, 0.5, 255, cv::THRESH_BINARY);
   return mask2;
