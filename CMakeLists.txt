@@ -115,6 +115,7 @@ catkin_package(
     skin_segmentation_calibration
     skin_segmentation_projection
     skin_segmentation_snapshot
+    skin_segmentation_thresholding
   CATKIN_DEPENDS
     cv_bridge
     image_geometry
@@ -160,6 +161,12 @@ target_link_libraries(skin_segmentation_snapshot
   ${catkin_LIBRARIES}
 )
 
+add_library(skin_segmentation_thresholding src/thresholding.cpp)
+add_dependencies(skin_segmentation_thresholding ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_thresholding
+  ${catkin_LIBRARIES}
+)
+
 ## Declare a C++ executable
 add_executable(skin_segmentation_calibration_capture src/calibration_capture.cpp)
 set_target_properties(skin_segmentation_calibration_capture PROPERTIES OUTPUT_NAME calibration_capture PREFIX "")
@@ -189,6 +196,7 @@ add_dependencies(skin_segmentation_projection_demo_main ${skin_segmentation_EXPO
 target_link_libraries(skin_segmentation_projection_demo_main
   skin_segmentation_projection
   skin_segmentation_snapshot
+  skin_segmentation_thresholding
   ${catkin_LIBRARIES}
 )
 
