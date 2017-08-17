@@ -20,10 +20,16 @@ class Projection {
                            cv::OutputArray thermal_projected);
   // Return -1, -1 if invalid.
   cv::Point2d GetThermalPixel(const cv::Point2d& rgb_pt, bool debug = false);
+  float GetRgbDepth(const cv::Point2d& rgb_pt);
 
   static void MouseCallback(int event, int x, int y, int flags, void* data);
 
  private:
+  void Rasterize(const cv::Point2d& rgb_pt, const cv::Point2d& thermal_pt,
+                 const cv_bridge::CvImageConstPtr& thermal_bridge,
+                 cv::Mat thermal_projected_mat,
+                 cv::Mat_<cv::Vec3b> _rgb_projected, cv::Mat_<cv::Vec3b> _rgb,
+                 cv::Mat z_buffer);
   sensor_msgs::CameraInfo rgbd_info_;
   sensor_msgs::CameraInfo thermal_info_;
   Eigen::Affine3d rgb_in_thermal_;
