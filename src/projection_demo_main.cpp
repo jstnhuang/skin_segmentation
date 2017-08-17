@@ -82,7 +82,6 @@ int main(int argc, char** argv) {
   cv::Mat projected_thermal;
   projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
                                  projected_thermal);
-  cv::setMouseCallback("RGB", &skinseg::Projection::MouseCallback, &projection);
   cv::waitKey();
 
   // skinseg::Thresholding thresholding;
