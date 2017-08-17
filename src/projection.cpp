@@ -162,47 +162,6 @@ cv::Point2d Projection::GetThermalPixel(const cv::Point2d& rgb_pt, bool debug) {
   cv::Point3d xyz_thermal(xyz_in_thermal.x(), xyz_in_thermal.y(),
                           xyz_in_thermal.z());
   return thermal_model_.project3dToPixel(xyz_thermal);
-
-  // Extract all the parameters we need
-  // double inv_rgbd_fx = 1.0 / rgbd_model_.fx();
-  // double inv_rgbd_fy = 1.0 / rgbd_model_.fy();
-  // double rgbd_cx = rgbd_model_.cx(), rgbd_cy = rgbd_model_.cy();
-  // double rgbd_Tx = rgbd_model_.Tx(), rgbd_Ty = rgbd_model_.Ty();
-  // double thermal_fx = thermal_model_.fx(), thermal_fy = thermal_model_.fy();
-  // double thermal_cx = thermal_model_.cx(), thermal_cy = thermal_model_.cy();
-  // double thermal_Tx = thermal_model_.Tx(), thermal_Ty = thermal_model_.Ty();
-
-  // if (debug) {
-  //  cv::Mat normalized_depth;
-  //  cv::normalize(depth_image_, normalized_depth, 0, 255, cv::NORM_MINMAX);
-  //  cv::circle(normalized_depth, rgb_pt, 5, cv::Scalar(0, 0, 255), 1);
-  //  cv::imshow("Depth", ConvertToColor(normalized_depth));
-  //}
-
-  // uint16_t raw_depth = depth_image_.at<uint16_t>(rgb_pt.y, rgb_pt.x);
-  // if (raw_depth == 0) {
-  //  return cv::Point2d(-1, -1);
-  //}
-  // double depth = DepthTraits<uint16_t>::toMeters(raw_depth);
-  // Eigen::Vector3d xyz_depth;
-  //// clang-format off
-  // xyz_depth << ((rgb_pt.x - rgbd_cx) * depth - rgbd_Tx) * inv_rgbd_fx,
-  //             ((rgb_pt.y - rgbd_cy) * depth - rgbd_Ty) * inv_rgbd_fy,
-  //             depth;
-  //// clang-format on
-
-  // Eigen::Vector3d xyz_thermal = rgb_in_thermal_ * xyz_depth;
-  // if (debug) {
-  //  ROS_INFO_STREAM("xyz in depth: " << xyz_depth
-  //                                   << ", in thermal: " << xyz_thermal);
-  //}
-
-  // double inv_Z = 1.0 / xyz_thermal.z();
-  // int u_thermal =
-  //    (thermal_fx * xyz_thermal.x() + thermal_Tx) * inv_Z + thermal_cx + 0.5;
-  // int v_thermal =
-  //    (thermal_fy * xyz_thermal.y() + thermal_Ty) * inv_Z + thermal_cy + 0.5;
-  // return cv::Point2d(u_thermal, v_thermal);
 }
 
 void Projection::MouseCallback(int event, int x, int y, int flags, void* data) {
