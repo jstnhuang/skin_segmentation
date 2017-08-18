@@ -12,12 +12,10 @@
 #include "sensor_msgs/Image.h"
 
 #include "skin_segmentation/calibration.h"
+#include "skin_segmentation/constants.h"
 
 using sensor_msgs::Image;
 typedef message_filters::sync_policies::ApproximateTime<Image, Image> MyPolicy;
-
-static const char kRgbTopic[] = "/camera/rgb/image_rect_color";
-static const char kThermalTopic[] = "/ici/ir_camera/image_normalized_rgb";
 
 void PrintUsage() {
   std::cout << "Computes calibration between thermal and RGB cameras, using "
@@ -47,8 +45,8 @@ int main(int argc, char** argv) {
   rosbag::Bag bag;
   bag.open(argv[1], rosbag::bagmode::Read);
   std::vector<std::string> topics;
-  topics.push_back(kRgbTopic);
-  topics.push_back(kThermalTopic);
+  topics.push_back(skinseg::kRgbTopic);
+  topics.push_back(skinseg::kNormalizedThermalTopic);
   rosbag::View view(bag, rosbag::TopicQuery(topics));
   size_t size = view.size();
   int i = 0;
@@ -57,9 +55,9 @@ int main(int argc, char** argv) {
     if (!image) {
       continue;
     }
-    if (it->getTopic() == kRgbTopic) {
+    if (it->getTopic() == skinseg::kRgbTopic) {
       rgb_cache.add(image);
-    } else if (it->getTopic() == kThermalTopic) {
+    } else if (it->getTopic() == skinseg::kThermalTopic) {
       thermal_cache.add(image);
     }
     if (++i % 100 == 0) {
