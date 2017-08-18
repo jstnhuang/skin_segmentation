@@ -33,11 +33,10 @@ Projection::Projection(const CameraInfo& rgbd_info,
   thermal_model_.fromCameraInfo(thermal_info);
 }
 
-void Projection::ProjectThermalOnRgb(
-    const sensor_msgs::Image::ConstPtr& rgb,
-    const sensor_msgs::Image::ConstPtr& depth,
-    const sensor_msgs::Image::ConstPtr& thermal,
-    cv::OutputArray thermal_projected) const {
+void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
+                                     const Image::ConstPtr& depth,
+                                     const Image::ConstPtr& thermal,
+                                     cv::OutputArray thermal_projected) const {
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   cv_bridge::CvImageConstPtr thermal_bridge = cv_bridge::toCvShare(thermal);
 
@@ -47,22 +46,30 @@ void Projection::ProjectThermalOnRgb(
   thermal_projected.create(rgb->height, rgb->width, CV_16UC1);
   cv::Mat thermal_projected_mat = thermal_projected.getMat();
   thermal_projected_mat = cv::Scalar(0);
-  cv::Mat z_buffer(thermal_bridge->image.rows, thermal_bridge->image.cols,
-                   CV_32F, cv::Scalar(0));
+  cv::Mat z_buffer = cv::Mat::zeros(thermal_bridge->image.rows,
+                                    thermal_bridge->image.cols, CV_32F);
 
-  for (double rgb_row = -0.5; rgb_row < rgb->height + 0.5; rgb_row += 0.5) {
-    for (double rgb_col = -0.5; rgb_col < rgb->width + 0.5; rgb_col += 0.5) {
+  int rgb_rows = rgb->height;
+  int rgb_cols = rgb->width;
+
+  for (double rgb_row = -0.5; rgb_row < rgb_rows + 0.5; rgb_row += 0.5) {
+    for (double rgb_col = -0.5; rgb_col < rgb_cols + 0.5; rgb_col += 0.5) {
       cv::Point2d rgb_pt(rgb_col, rgb_row);
       cv::Point2d thermal_pt = GetThermalPixel(depth_bridge->image, rgb_pt);
-      if (thermal_pt.x < 0 || thermal_pt.x >= thermal_bridge->image.cols ||
-          thermal_pt.y < 0 || thermal_pt.y >= thermal_bridge->image.rows) {
-        continue;
-      }
 
       int r_row = round(rgb_pt.y);
       int r_col = round(rgb_pt.x);
       int t_row = round(thermal_pt.y);
       int t_col = round(thermal_pt.x);
+
+      if (t_col < 0 || t_col >= thermal_bridge->image.cols || t_row < 0 ||
+          t_row >= thermal_bridge->image.rows) {
+        continue;
+      }
+
+      if (r_col < 0 || r_col >= rgb_rows || r_row < 0 || r_row >= rgb_cols) {
+        continue;
+      }
 
       float depth = GetRgbDepth(depth_bridge->image, rgb_pt);
       float prev_depth = z_buffer.at<float>(t_row, t_col);
