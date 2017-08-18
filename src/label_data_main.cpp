@@ -13,12 +13,14 @@
 #include "message_filters/sync_policies/approximate_time.h"
 #include "message_filters/synchronizer.h"
 #include "ros/ros.h"
-#include "rospack/rospack.h"
+#include "rosbag/bag.h"
+#include "rosbag/view.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
 #include "skin_segmentation/constants.h"
 #include "skin_segmentation/labeling.h"
+#include "skin_segmentation/load_camera_info.h"
 #include "skin_segmentation/projection.h"
 
 using sensor_msgs::CameraInfo;
@@ -26,52 +28,11 @@ using sensor_msgs::Image;
 typedef message_filters::sync_policies::ApproximateTime<Image, Image, Image>
     MyPolicy;
 
-bool GetCameraInfos(CameraInfo* rgb_info, CameraInfo* thermal_info) {
-  rospack::Rospack rospack;
-  std::vector<std::string> search_path;
-  bool success = rospack.getSearchPathFromEnv(search_path);
-  if (!success) {
-    ROS_ERROR("Failed to get package search path.");
-    return false;
-  }
-  rospack.crawl(search_path, /* force */ false);
-  std::string package("");
-  success = rospack.find("skin_segmentation", package);
-  if (!success) {
-    ROS_ERROR(
-        "Unable to find skin_segmentation package. Check that you have sourced "
-        "the right workspace.");
-    return false;
-  }
-
-  std::string rgb_path(package);
-  rgb_path += skinseg::kRgbConfigPath;
-  std::string rgb_name("");
-  success = camera_calibration_parsers::readCalibration(rgb_path, rgb_name,
-                                                        *rgb_info);
-  if (!success) {
-    ROS_ERROR("Unable to find RGB camera info at %s", rgb_path.c_str());
-    return false;
-  }
-
-  std::string thermal_path(package);
-  thermal_path += skinseg::kThermalConfigPath;
-  std::string thermal_name("");
-  success = camera_calibration_parsers::readCalibration(
-      thermal_path, thermal_name, *thermal_info);
-  if (!success) {
-    ROS_ERROR("Unable to find thermal camera info at %s", thermal_path.c_str());
-    return false;
-  }
-
-  return true;
-}
-
 int main(int argc, char** argv) {
   ros::init(argc, argv, "skin_segmentation_label_data");
   ros::NodeHandle nh;
 
-  if (argc < 2) {
+  if (argc < 3) {
     std::cout
         << "Usage: rosrun skin_segmentation label_data INPUT.bag OUTPUT.bag"
         << std::endl;
@@ -80,7 +41,7 @@ int main(int argc, char** argv) {
 
   CameraInfo rgb_info;
   CameraInfo thermal_info;
-  bool success = GetCameraInfos(&rgb_info, &thermal_info);
+  bool success = skinseg::GetCameraInfos(&rgb_info, &thermal_info);
   if (!success) {
     return 1;
   }
@@ -106,6 +67,25 @@ int main(int argc, char** argv) {
   message_filters::Synchronizer<MyPolicy> sync(MyPolicy(10), rgb_cache,
                                                depth_cache, thermal_cache);
   sync.registerCallback(&skinseg::Labeling::Process, &labeling);
+
+  rosbag::Bag input_bag;
+  std::string input_bag_path(argv[1]);
+  input_bag.open(input_bag_path, rosbag::bagmode::Read);
+  std::vector<std::string> topics;
+  topics.push_back(skinseg::kRgbTopic);
+  topics.push_back(skinseg::kDepthTopic);
+  topics.push_back(skinseg::kThermalTopic);
+  rosbag::View view(input_bag, rosbag::TopicQuery(topics));
+
+  for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
+    if (it->getTopic() == skinseg::kRgbTopic) {
+      rgb_cache.add(it->instantiate<Image>());
+    } else if (it->getTopic() == skinseg::kDepthTopic) {
+      depth_cache.add(it->instantiate<Image>());
+    } else if (it->getTopic() == skinseg::kThermalTopic) {
+      thermal_cache.add(it->instantiate<Image>());
+    }
+  }
 
   return 0;
 }
