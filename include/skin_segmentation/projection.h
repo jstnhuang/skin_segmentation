@@ -17,19 +17,20 @@ class Projection {
   void ProjectThermalOnRgb(const sensor_msgs::Image::ConstPtr& rgb,
                            const sensor_msgs::Image::ConstPtr& depth,
                            const sensor_msgs::Image::ConstPtr& thermal,
-                           cv::OutputArray thermal_projected);
+                           cv::OutputArray thermal_projected) const;
 
   void set_debug(bool debug);
 
   // Return -1, -1 if invalid.
   cv::Point2d GetThermalPixel(const cv::Mat& depth_image,
-                              const cv::Point2d& rgb_pt);
-  float GetRgbDepth(const cv::Mat& depth_image, const cv::Point2d& rgb_pt);
+                              const cv::Point2d& rgb_pt) const;
+  float GetRgbDepth(const cv::Mat& depth_image,
+                    const cv::Point2d& rgb_pt) const;
 
  private:
-  sensor_msgs::CameraInfo rgbd_info_;
-  sensor_msgs::CameraInfo thermal_info_;
-  Eigen::Affine3d rgb_in_thermal_;
+  const sensor_msgs::CameraInfo& rgbd_info_;
+  const sensor_msgs::CameraInfo& thermal_info_;
+  const Eigen::Affine3d& rgb_in_thermal_;
   image_geometry::PinholeCameraModel rgbd_model_;
   image_geometry::PinholeCameraModel thermal_model_;
   bool debug_;

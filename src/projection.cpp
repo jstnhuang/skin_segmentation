@@ -37,7 +37,7 @@ void Projection::ProjectThermalOnRgb(
     const sensor_msgs::Image::ConstPtr& rgb,
     const sensor_msgs::Image::ConstPtr& depth,
     const sensor_msgs::Image::ConstPtr& thermal,
-    cv::OutputArray thermal_projected) {
+    cv::OutputArray thermal_projected) const {
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   cv_bridge::CvImageConstPtr thermal_bridge = cv_bridge::toCvShare(thermal);
 
@@ -117,7 +117,7 @@ void Projection::ProjectThermalOnRgb(
 void Projection::set_debug(bool debug) { debug_ = debug; }
 
 float Projection::GetRgbDepth(const cv::Mat& depth_image,
-                              const cv::Point2d& rgb_pt) {
+                              const cv::Point2d& rgb_pt) const {
   int rgb_row_i = std::min<double>(std::max<double>(round(rgb_pt.y), 0),
                                    depth_image.rows - 1);
   int rgb_col_i = std::min<double>(std::max<double>(round(rgb_pt.x), 0),
@@ -130,7 +130,7 @@ float Projection::GetRgbDepth(const cv::Mat& depth_image,
 }
 
 cv::Point2d Projection::GetThermalPixel(const cv::Mat& depth_image,
-                                        const cv::Point2d& rgb_pt) {
+                                        const cv::Point2d& rgb_pt) const {
   float depth = GetRgbDepth(depth_image, rgb_pt);
   if (depth == 0) {
     return cv::Point2d(-1, -1);
