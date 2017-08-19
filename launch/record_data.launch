@@ -3,5 +3,5 @@
 -->
 <launch>
   <arg name="output" default="/home/jstn/images" />
-  <node pkg="rosbag" type="record" name="record_data_rosbag" args="/ici/ir_camera/image_raw /camera/rgb/image_rect_color /camera/depth_registered/hw_registered/image_rect -O $(arg output) --lz4" />
+  <node pkg="rosbag" type="record" name="record_data_rosbag" args="/ici/ir_camera/image_raw /camera/rgb/image_rect_color /camera/depth_registered/hw_registered/image_rect -o $(arg output) --lz4" />
 </launch>
