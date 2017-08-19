@@ -15,7 +15,7 @@ class Labeling {
                const sensor_msgs::Image::ConstPtr& thermal);
 
  private:
-  const Projection& projection_;
+  Projection projection_;
 };
 }  // namespace skinseg
 

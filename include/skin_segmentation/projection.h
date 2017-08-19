@@ -1,6 +1,9 @@
 #ifndef _SKINSEG_PROJECTION_H_
 #define _SKINSEG_PROJECTION_H_
 
+#include <list>
+#include <map>
+
 #include "Eigen/Dense"
 #include "cv_bridge/cv_bridge.h"
 #include "image_geometry/pinhole_camera_model.h"
@@ -17,7 +20,7 @@ class Projection {
   void ProjectThermalOnRgb(const sensor_msgs::Image::ConstPtr& rgb,
                            const sensor_msgs::Image::ConstPtr& depth,
                            const sensor_msgs::Image::ConstPtr& thermal,
-                           cv::OutputArray thermal_projected) const;
+                           cv::OutputArray thermal_projected);
 
   void set_debug(bool debug);
 
@@ -27,6 +30,10 @@ class Projection {
   float GetRgbDepth(const cv::Mat& depth_image,
                     const cv::Point2d& rgb_pt) const;
 
+  static void RgbdMouseCallback(int event, int x, int y, int flags, void* data);
+  static void ThermalMouseCallback(int event, int x, int y, int flags,
+                                   void* data);
+
  private:
   const sensor_msgs::CameraInfo& rgbd_info_;
   const sensor_msgs::CameraInfo& thermal_info_;
@@ -34,6 +41,11 @@ class Projection {
   image_geometry::PinholeCameraModel rgbd_model_;
   image_geometry::PinholeCameraModel thermal_model_;
   bool debug_;
+
+  cv::Mat rgb_;
+  cv::Mat depth_;
+  cv::Mat thermal_;
+  std::map<std::pair<int, int>, std::list<cv::Point2d> > thermal_to_rgb_;
 };
 }  // namespace skinseg
 

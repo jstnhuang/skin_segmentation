@@ -59,6 +59,7 @@ int main(int argc, char** argv) {
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
   skinseg::Projection projection(rgb_info, thermal_info, rgb_in_thermal);
+  projection.set_debug(true);
   skinseg::Labeling labeling(projection);
 
   message_filters::Cache<Image> rgb_cache(20);
@@ -66,6 +67,7 @@ int main(int argc, char** argv) {
   message_filters::Cache<Image> thermal_cache(20);
   message_filters::Synchronizer<MyPolicy> sync(MyPolicy(10), rgb_cache,
                                                depth_cache, thermal_cache);
+  sync.getPolicy()->setMaxIntervalDuration(ros::Duration(0.01));
   sync.registerCallback(&skinseg::Labeling::Process, &labeling);
 
   rosbag::Bag input_bag;

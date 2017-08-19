@@ -6,6 +6,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
+#include "skin_segmentation/load_camera_info.h"
 #include "skin_segmentation/projection.h"
 #include "skin_segmentation/rgbdt_data.h"
 #include "skin_segmentation/snapshot.h"
@@ -29,40 +30,19 @@ int main(int argc, char** argv) {
   skinseg::RgbdtData data = snapshot.data();
 
   // Hard-coded camera infos
-  sensor_msgs::CameraInfo rgbd_camera_info = *data.rgbd_camera_info;
-  sensor_msgs::CameraInfo thermal_camera_info = *data.thermal_camera_info;
-  // thermal_camera_info.distortion_model = "rational_polynomial";
-  // thermal_camera_info.D.resize(8);
-  // thermal_camera_info.D[0] = 0;
-  // thermal_camera_info.D[1] = 0;
-  // thermal_camera_info.D[2] = -0.00389198;
-  // thermal_camera_info.D[3] = 0.03062872;
-  // thermal_camera_info.D[4] = 0;
-  // thermal_camera_info.D[5] = 0;
-  // thermal_camera_info.D[6] = 0;
-  // thermal_camera_info.D[7] = 0;
+  sensor_msgs::CameraInfo rgbd_camera_info;
+  sensor_msgs::CameraInfo thermal_camera_info;
+  skinseg::GetCameraInfos(&rgbd_camera_info, &thermal_camera_info);
 
-  // rgbd_camera_info.distortion_model = "plumb_bob";
-  // rgbd_camera_info.D.resize(5);
-  // rgbd_camera_info.D[0] = 0;
-  // rgbd_camera_info.D[1] = 0;
-  // rgbd_camera_info.D[2] = 0;
-  // rgbd_camera_info.D[3] = 0;
-  // rgbd_camera_info.D[4] = 0;
+  // rgbd_camera_info.K[0] = 565.829036;
+  // rgbd_camera_info.K[4] = 564.944907;
+  // rgbd_camera_info.P[0] = 567.424805;
+  // rgbd_camera_info.P[5] = 572.887207;
 
-  // double rf;
-  // ros::param::param<double>("rgbd_f", rf, 570.34);
-  // rgbd_camera_info.K[0] = rf;
-  // rgbd_camera_info.K[4] = rf;
-  // rgbd_camera_info.P[0] = rf;
-  // rgbd_camera_info.P[5] = rf;
-
-  // double tf;
-  // ros::param::param<double>("thermal_f", tf, 735.29);
-  // thermal_camera_info.K[0] = tf;
-  // thermal_camera_info.K[4] = tf;
-  // thermal_camera_info.P[0] = tf;
-  // thermal_camera_info.P[5] = tf;
+  // thermal_camera_info.K[0] = 739.7781870603687;
+  // thermal_camera_info.K[4] = 739.8801010453104;
+  // thermal_camera_info.P[0] = 739.7781870603687;
+  // thermal_camera_info.P[5] = 739.8801010453104;
 
   Eigen::Vector3d translation;
   ros::param::param<double>("thermal_x", translation.x(), 0.00021494608);
@@ -79,10 +59,18 @@ int main(int argc, char** argv) {
 
   skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
                                  rgb_in_thermal);
+  cv::setMouseCallback("RGB", &skinseg::Projection::RgbdMouseCallback,
+                       &projection);
+  cv::setMouseCallback("Depth", &skinseg::Projection::RgbdMouseCallback,
+                       &projection);
+  cv::setMouseCallback("Normalized thermal",
+                       &skinseg::Projection::ThermalMouseCallback, &projection);
   projection.set_debug(true);
   cv::Mat projected_thermal;
   projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
                                  projected_thermal);
+
+  cv::waitKey();
 
   return 0;
 }

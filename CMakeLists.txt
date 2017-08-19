@@ -220,6 +220,7 @@ add_executable(skin_segmentation_projection_demo_main src/projection_demo_main.c
 set_target_properties(skin_segmentation_projection_demo_main PROPERTIES OUTPUT_NAME projection_demo PREFIX "")
 add_dependencies(skin_segmentation_projection_demo_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_projection_demo_main
+  skin_segmentation_load_camera_info
   skin_segmentation_projection
   skin_segmentation_snapshot
   skin_segmentation_thresholding

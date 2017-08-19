@@ -21,6 +21,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     return;
   }
 
+  ROS_INFO("RGB - Depth skew: %f, RGB-Thermal skew: %f",
+           (rgb->header.stamp - depth->header.stamp).toSec(),
+           (rgb->header.stamp - thermal->header.stamp).toSec());
+
   double threshold;
   ros::param::param("thermal_threshold", threshold, 3650.0);
 
@@ -29,16 +33,27 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   cv::Mat thermal_fp;
   thermal_projected.convertTo(thermal_fp, CV_32F);
+
   cv::Mat labels;
   cv::threshold(thermal_fp, labels, threshold, 1, cv::THRESH_BINARY);
-
   cv_bridge::CvImageConstPtr rgb_bridge =
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
-  cv::namedWindow("RGB");
-  cv::imshow("RGB", rgb_bridge->image);
+  // cv::namedWindow("RGB");
+  // cv::imshow("RGB", rgb_bridge->image);
 
-  cv::namedWindow("Labels");
-  cv::imshow("Labels", labels);
+  // cv::Mat mask = thermal_projected != 0;
+  // cv::Mat normalized_thermal(thermal_projected.rows, thermal_projected.cols,
+  //                           CV_16UC1, cv::Scalar(0));
+  // cv::normalize(thermal_projected, normalized_thermal, 0, 255,
+  // cv::NORM_MINMAX,
+  //              -1, mask);
+  // cv::namedWindow("Labels");
+  // cv::imshow("Labels", ConvertToColor(normalized_thermal));
+
+  cv::Mat overlay = rgb_bridge->image;
+  overlay.setTo(cv::Scalar(0, 0, 255), labels != 0);
+  cv::namedWindow("Overlay");
+  cv::imshow("Overlay", overlay);
 
   cv::waitKey();
 }
