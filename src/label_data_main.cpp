@@ -62,12 +62,12 @@ int main(int argc, char** argv) {
   projection.set_debug(true);
   skinseg::Labeling labeling(projection);
 
-  message_filters::Cache<Image> rgb_cache(20);
-  message_filters::Cache<Image> depth_cache(20);
-  message_filters::Cache<Image> thermal_cache(20);
-  message_filters::Synchronizer<MyPolicy> sync(MyPolicy(10), rgb_cache,
+  message_filters::Cache<Image> rgb_cache(100);
+  message_filters::Cache<Image> depth_cache(100);
+  message_filters::Cache<Image> thermal_cache(100);
+  message_filters::Synchronizer<MyPolicy> sync(MyPolicy(100), rgb_cache,
                                                depth_cache, thermal_cache);
-  sync.getPolicy()->setMaxIntervalDuration(ros::Duration(0.01));
+  sync.getPolicy()->setMaxIntervalDuration(ros::Duration(0.005));
   sync.registerCallback(&skinseg::Labeling::Process, &labeling);
 
   rosbag::Bag input_bag;
