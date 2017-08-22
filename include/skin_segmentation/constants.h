@@ -10,6 +10,8 @@ static const char kDepthTopic[] =
 static const char kThermalTopic[] = "/ici/ir_camera/image_raw";
 static const char kNormalizedThermalTopic[] =
     "/ici/ir_camera/image_normalized_rgb";
+static const char kLabelsTopic[] = "/labels";
+static const char kLabelOverlayTopic[] = "/label_overlay";
 }  // namespace skinseg
 
 #endif  // _SKINSEG_CONSTANTS_H_
