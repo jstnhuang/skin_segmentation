@@ -23,8 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED)
-find_package(OpenCV 2 REQUIRED)
-
+find_package(OpenCV 3 REQUIRED)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -151,6 +150,7 @@ add_library(skin_segmentation_calibration src/calibration.cpp)
 add_dependencies(skin_segmentation_calibration ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_calibration
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_library(skin_segmentation_labeling src/labeling.cpp)
@@ -158,6 +158,7 @@ add_dependencies(skin_segmentation_labeling ${skin_segmentation_EXPORTED_TARGETS
 target_link_libraries(skin_segmentation_labeling
   skin_segmentation_projection
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_library(skin_segmentation_load_camera_info src/load_camera_info.cpp)
@@ -170,6 +171,7 @@ add_library(skin_segmentation_projection src/projection.cpp)
 add_dependencies(skin_segmentation_projection ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_projection
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_library(skin_segmentation_snapshot src/snapshot.cpp)
@@ -182,6 +184,7 @@ add_library(skin_segmentation_thresholding src/thresholding.cpp)
 add_dependencies(skin_segmentation_thresholding ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_thresholding
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 ## Declare a C++ executable
@@ -190,6 +193,7 @@ set_target_properties(skin_segmentation_calibration_capture PROPERTIES OUTPUT_NA
 add_dependencies(skin_segmentation_calibration_capture ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_calibration_capture
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_executable(skin_segmentation_calibration_main src/calibration_main.cpp)
@@ -214,6 +218,7 @@ set_target_properties(skin_segmentation_normalization_node PROPERTIES OUTPUT_NAM
 add_dependencies(skin_segmentation_normalization_node ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_normalization_node
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_executable(skin_segmentation_projection_demo_main src/projection_demo_main.cpp)
@@ -225,6 +230,7 @@ target_link_libraries(skin_segmentation_projection_demo_main
   skin_segmentation_snapshot
   skin_segmentation_thresholding
   ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
 )
 
 add_executable(skin_segmentation_snapshot_main src/snapshot_main.cpp)

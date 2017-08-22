@@ -2,13 +2,14 @@
 #define _SKINSEG_OPENCV_UTILS_H_
 
 #include <string>
+#include <vector>
 
 #include "opencv2/core/core.hpp"
 #include "opencv2/imgproc/imgproc.hpp"
 
 namespace skinseg {
 
-typedef cv::vector<cv::Vec2f> Corners;
+typedef std::vector<cv::Vec2f> Corners;
 
 std::string type2str(int type) {
   std::string r;

@@ -110,8 +110,8 @@ void Calibration::Run() {
   cv::Mat rgb_camera_matrix = (cv::Mat_<float>(3, 3) << kRgbFxGuess, 0, kRgbCx,
                                0, kRgbFyGuess, kRgbCy, 0, 0, 1);
   cv::Mat rgb_dist_coeffs;
-  cv::vector<cv::Mat> rgb_rvecs;
-  cv::vector<cv::Mat> rgb_tvecs;
+  std::vector<cv::Mat> rgb_rvecs;
+  std::vector<cv::Mat> rgb_tvecs;
   double rgb_error = cv::calibrateCamera(
       object_points, rgb_corners, cv::Size(kRgbWidth, kRgbHeight),
       rgb_camera_matrix, rgb_dist_coeffs, rgb_rvecs, rgb_tvecs, kCalibFlags);
@@ -130,8 +130,8 @@ void Calibration::Run() {
       (cv::Mat_<float>(3, 3) << kThermalFxGuess, 0, kThermalCx, 0,
        kThermalFyGuess, kThermalCy, 0, 0, 1);
   cv::Mat thermal_dist_coeffs;
-  cv::vector<cv::Mat> thermal_rvecs;
-  cv::vector<cv::Mat> thermal_tvecs;
+  std::vector<cv::Mat> thermal_rvecs;
+  std::vector<cv::Mat> thermal_tvecs;
   double thermal_error = cv::calibrateCamera(
       object_points, thermal_corners, cv::Size(kThermalWidth, kThermalHeight),
       thermal_camera_matrix, thermal_dist_coeffs, thermal_rvecs, thermal_tvecs,

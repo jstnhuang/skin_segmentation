@@ -1,7 +1,7 @@
 #include <iostream>
 
 #include "Eigen/Dense"
-#include "opencv2/highgui/highgui.hpp"
+#include "opencv2/highgui.hpp"
 #include "ros/ros.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
@@ -59,6 +59,9 @@ int main(int argc, char** argv) {
 
   skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
                                  rgb_in_thermal);
+  cv::namedWindow("RGB");
+  cv::namedWindow("Depth");
+  cv::namedWindow("Normalized thermal");
   cv::setMouseCallback("RGB", &skinseg::Projection::RgbdMouseCallback,
                        &projection);
   cv::setMouseCallback("Depth", &skinseg::Projection::RgbdMouseCallback,
