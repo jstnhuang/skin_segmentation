@@ -74,8 +74,8 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   double depth_threshold;
   ros::param::param("depth_threshold", depth_threshold, 2.0);
 
-  for (double rgb_row = -0.5; rgb_row < rgb_rows + 0.5; rgb_row += 0.5) {
-    for (double rgb_col = -0.5; rgb_col < rgb_cols + 0.5; rgb_col += 0.5) {
+  for (double rgb_row = 0; rgb_row < rgb_rows; rgb_row += 0.5) {
+    for (double rgb_col = 0; rgb_col < rgb_cols; rgb_col += 0.5) {
       cv::Point2d rgb_pt(rgb_col, rgb_row);
       float depth = GetRgbDepth(depth_bridge->image, rgb_pt);
       if (depth > depth_threshold) {
@@ -84,19 +84,23 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
 
       cv::Point2d thermal_pt = GetThermalPixel(depth_bridge->image, rgb_pt);
 
-      int r_row =
-          std::min<double>(std::max<double>(round(rgb_pt.y), 0), rgb_rows - 1);
-      int r_col =
-          std::min<double>(std::max<double>(round(rgb_pt.x), 0), rgb_cols - 1);
-      int t_row = round(thermal_pt.y);
-      int t_col = round(thermal_pt.x);
+      int r_row = rgb_pt.y + 0.5;
+      if (r_row > rgb_rows - 1) {
+        r_row = rgb_rows - 1;
+      }
+      int r_col = rgb_pt.x + 0.5;
+      if (r_col > rgb_cols - 1) {
+        r_col = rgb_cols - 1;
+      }
+      int t_row = thermal_pt.y + 0.5;
+      int t_col = thermal_pt.x + 0.5;
 
       if (t_col < 0 || t_col >= thermal_bridge->image.cols || t_row < 0 ||
           t_row >= thermal_bridge->image.rows) {
         continue;
       }
 
-      float prev_depth = z_buffer.at<float>(t_row, t_col);
+      float& prev_depth = z_buffer.at<float>(t_row, t_col);
 
       bool depth_check_passed = prev_depth == 0 || depth < prev_depth;
 
@@ -111,7 +115,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
       }
 
       if (depth_check_passed) {
-        z_buffer.at<float>(t_row, t_col) = depth;
+        prev_depth = depth;
         thermal_projected_mat.at<uint16_t>(r_row, r_col) =
             thermal_bridge->image.at<uint16_t>(t_row, t_col);
         if (debug_) {
