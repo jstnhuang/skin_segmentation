@@ -71,9 +71,17 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   int rgb_rows = rgb->height;
   int rgb_cols = rgb->width;
 
+  double depth_threshold;
+  ros::param::param("depth_threshold", depth_threshold, 2.0);
+
   for (double rgb_row = -0.5; rgb_row < rgb_rows + 0.5; rgb_row += 0.5) {
     for (double rgb_col = -0.5; rgb_col < rgb_cols + 0.5; rgb_col += 0.5) {
       cv::Point2d rgb_pt(rgb_col, rgb_row);
+      float depth = GetRgbDepth(depth_bridge->image, rgb_pt);
+      if (depth > depth_threshold) {
+        continue;
+      }
+
       cv::Point2d thermal_pt = GetThermalPixel(depth_bridge->image, rgb_pt);
 
       int r_row =
@@ -88,7 +96,6 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
         continue;
       }
 
-      float depth = GetRgbDepth(depth_bridge->image, rgb_pt);
       float prev_depth = z_buffer.at<float>(t_row, t_col);
 
       bool depth_check_passed = prev_depth == 0 || depth < prev_depth;
@@ -256,8 +263,8 @@ void Projection::ThermalMouseCallback(int event, int x, int y, int flags,
 
 void Projection::set_debug(bool debug) { debug_ = debug; }
 
-float Projection::GetRgbDepth(const cv::Mat& depth_image,
-                              const cv::Point2d& rgb_pt) const {
+inline float Projection::GetRgbDepth(const cv::Mat& depth_image,
+                                     const cv::Point2d& rgb_pt) const {
   int rgb_row_i = std::min<double>(std::max<double>(round(rgb_pt.y), 0),
                                    depth_image.rows - 1);
   int rgb_col_i = std::min<double>(std::max<double>(round(rgb_pt.x), 0),
@@ -269,8 +276,8 @@ float Projection::GetRgbDepth(const cv::Mat& depth_image,
   return DepthTraits<uint16_t>::toMeters(raw_depth);
 }
 
-cv::Point2d Projection::GetThermalPixel(const cv::Mat& depth_image,
-                                        const cv::Point2d& rgb_pt) const {
+inline cv::Point2d Projection::GetThermalPixel(
+    const cv::Mat& depth_image, const cv::Point2d& rgb_pt) const {
   float depth = GetRgbDepth(depth_image, rgb_pt);
   if (depth == 0) {
     return cv::Point2d(-1, -1);

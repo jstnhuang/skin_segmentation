@@ -59,15 +59,17 @@ int main(int argc, char** argv) {
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
   skinseg::Projection projection(rgb_info, thermal_info, rgb_in_thermal);
-  projection.set_debug(true);
-  skinseg::Labeling labeling(projection);
+  // projection.set_debug(true);
+  rosbag::Bag output_bag;
+  output_bag.open(argv[2], rosbag::bagmode::Write);
+  skinseg::Labeling labeling(projection, &output_bag);
 
   message_filters::Cache<Image> rgb_cache(100);
   message_filters::Cache<Image> depth_cache(100);
   message_filters::Cache<Image> thermal_cache(100);
   message_filters::Synchronizer<MyPolicy> sync(MyPolicy(100), rgb_cache,
                                                depth_cache, thermal_cache);
-  sync.getPolicy()->setMaxIntervalDuration(ros::Duration(0.005));
+  // sync.getPolicy()->setMaxIntervalDuration(ros::Duration(0.01));
   sync.registerCallback(&skinseg::Labeling::Process, &labeling);
 
   rosbag::Bag input_bag;
@@ -79,6 +81,9 @@ int main(int argc, char** argv) {
   topics.push_back(skinseg::kThermalTopic);
   rosbag::View view(input_bag, rosbag::TopicQuery(topics));
 
+  int num_msgs = view.size();
+  int i = 0;
+
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
     if (it->getTopic() == skinseg::kRgbTopic) {
       rgb_cache.add(it->instantiate<Image>());
@@ -87,7 +92,12 @@ int main(int argc, char** argv) {
     } else if (it->getTopic() == skinseg::kThermalTopic) {
       thermal_cache.add(it->instantiate<Image>());
     }
+    ++i;
+    ROS_INFO("Processed image %d of %d (%f)", i, num_msgs,
+             static_cast<float>(i) / num_msgs);
   }
+
+  output_bag.close();
 
   return 0;
 }
