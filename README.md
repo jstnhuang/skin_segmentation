@@ -13,3 +13,7 @@ Pixel-level skin segmentation using a thermal camera for data labeling.
 
 The calibration will output the intrinsics of both cameras and the frame of the thermal camera in the frame of the RGB camera (as a 4x4 `thermal_in_rgb` matrix).
 We recommend ignoring the RGB intrinsics as it won't be better than the factory calibration.
+
+## Installation
+Requires CUDA to be installed (we are using CUDA 8, compatability 6.1).
+We make use of Eigen inside CUDA kernels, so you must install Eigen 3.3 or higher to your system.
