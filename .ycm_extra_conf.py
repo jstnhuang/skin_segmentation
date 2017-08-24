@@ -60,6 +60,8 @@ flags = [
 '/usr/local/caffe/include',
 '-I',
 '/usr/local/cuda/include',
+'-I',
+'/usr/local/cuda/samples/common/inc'
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
