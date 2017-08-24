@@ -23,7 +23,10 @@ find_package(catkin REQUIRED COMPONENTS
 
 ## System dependencies are found with CMake's conventions
 find_package(Boost REQUIRED)
+find_package(CUDA REQUIRED)
 find_package(OpenCV 3 REQUIRED)
+find_package(PkgConfig)
+pkg_check_modules(eigen3 REQUIRED eigen3)
 
 ## Uncomment this if the package has a setup.py. This macro ensures
 ## modules and global scripts declared therein get installed
@@ -141,7 +144,9 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  ${eigen3_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
+  ${CUDA_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
 )
 
@@ -167,7 +172,7 @@ target_link_libraries(skin_segmentation_load_camera_info
   ${catkin_LIBRARIES}
 )
 
-add_library(skin_segmentation_projection src/projection.cpp)
+cuda_add_library(skin_segmentation_projection src/projection.cpp src/projection.cu)
 add_dependencies(skin_segmentation_projection ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_projection
   ${catkin_LIBRARIES}
