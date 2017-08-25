@@ -10,10 +10,10 @@
 namespace skinseg {
 // Wrapper class for nerf body tracker.
 struct Nerf {
-  nerf::RosObservation* observation;
-  nerf::Model model;
-  nerf::ModelInstance* model_instance;
-  nerf::Optimizer* optimizer;
+  nerf::RosObservation* observation;  // Not owned by anyone
+  nerf::Model* model;
+  nerf::ModelInstance* model_instance;  // Owned by model
+  nerf::Optimizer* optimizer;           // Not owned by anyone
   nerf::OptimizationParameters opt_parameters;
 };
 

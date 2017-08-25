@@ -37,16 +37,15 @@ void BuildNerf(Nerf* nerf) {
 
   std::string model_path("");
   skinseg::GetNerfModelPath(&model_path);
-  nerf::Model model(model_path);
-  model.setControlStiffness(0, 0.f);
-  model.setControlStiffness(1, 0.f);
-  model.setControlStiffness(2, 0.f);
-  model.setControlStiffness(3, 0.f);
-  model.setControlStiffness(4, 0.f);
-  model.setControlStiffness(5, 0.f);
-  nerf->model = model;
+  nerf->model = new nerf::Model(model_path);
+  nerf->model->setControlStiffness(0, 0.f);
+  nerf->model->setControlStiffness(1, 0.f);
+  nerf->model->setControlStiffness(2, 0.f);
+  nerf->model->setControlStiffness(3, 0.f);
+  nerf->model->setControlStiffness(4, 0.f);
+  nerf->model->setControlStiffness(5, 0.f);
 
-  nerf->model_instance = model.createNewInstance();
+  nerf->model_instance = nerf->model->createNewInstance();
   nerf->model_instance->addToControl(1, 0.5f);
   nerf->model_instance->addToControl(2, 2.f);
   nerf->model_instance->addToControl(5, 3.1415926f);

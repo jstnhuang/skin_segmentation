@@ -43,6 +43,26 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv::Mat thermal_fp;
   thermal_projected.convertTo(thermal_fp, CV_32F);
 
+  // Body pose tracking
+  nerf_->observation->Callback(rgb, depth);
+  nerf_->observation->advance();
+  nerf_->optimizer->optimize(nerf_->opt_parameters);
+  const nerf::DualQuaternion* joint_poses =
+      nerf_->model_instance->getHostJointPose();
+  int l_index =
+      nerf_->model->getKinematics()->getJointIndex(kNerfLForearmRotJoint);
+  int r_index =
+      nerf_->model->getKinematics()->getJointIndex(kNerfRForearmRotJoint);
+  nerf::DualQuaternion l_forearm_pose = joint_poses[l_index];
+  nerf::DualQuaternion r_forearm_pose = joint_poses[r_index];
+  Eigen::Affine3f l_matrix(l_forearm_pose.ToMatrix());
+  Eigen::Affine3f r_matrix(r_forearm_pose.ToMatrix());
+
+  if (debug_) {
+    ROS_INFO_STREAM("l: " << l_matrix.matrix());
+    ROS_INFO_STREAM("r: " << r_matrix.matrix());
+  }
+
   cv::Mat labels_mat;
   cv::threshold(thermal_fp, labels_mat, thermal_threshold, 1,
                 cv::THRESH_BINARY);
