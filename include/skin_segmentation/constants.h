@@ -12,6 +12,8 @@ static const char kNormalizedThermalTopic[] =
     "/ici/ir_camera/image_normalized_rgb";
 static const char kLabelsTopic[] = "/labels";
 static const char kLabelOverlayTopic[] = "/label_overlay";
+static const char kNerfModelPackage[] = "nerf_models";
+static const char kNerfHumanModelPath[] = "/human_1/human_1.json";
 }  // namespace skinseg
 
 #endif  // _SKINSEG_CONSTANTS_H_

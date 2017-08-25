@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_geometry
   message_filters
+  nerf_b
   sensor_msgs
   tf
   tf_conversions
@@ -119,6 +120,7 @@ catkin_package(
     skin_segmentation_calibration
     skin_segmentation_labeling
     skin_segmentation_load_camera_info
+    skin_segmentation_nerf
     skin_segmentation_projection
     skin_segmentation_snapshot
     skin_segmentation_thresholding
@@ -169,6 +171,12 @@ target_link_libraries(skin_segmentation_labeling
 add_library(skin_segmentation_load_camera_info src/load_camera_info.cpp)
 add_dependencies(skin_segmentation_load_camera_info ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_load_camera_info
+  ${catkin_LIBRARIES}
+)
+
+add_library(skin_segmentation_nerf src/nerf.cpp)
+add_dependencies(skin_segmentation_nerf ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_nerf
   ${catkin_LIBRARIES}
 )
 

@@ -49,4 +49,27 @@ bool GetCameraInfos(sensor_msgs::CameraInfo* rgb_info,
 
   return true;
 }
+
+bool GetNerfModelPath(std::string* model_path) {
+  rospack::Rospack rospack;
+  std::vector<std::string> search_path;
+  bool success = rospack.getSearchPathFromEnv(search_path);
+  if (!success) {
+    ROS_ERROR("Failed to get package search path.");
+    return false;
+  }
+  rospack.crawl(search_path, /* force */ false);
+  std::string package("");
+  success = rospack.find(kNerfModelPackage, package);
+  if (!success) {
+    ROS_ERROR(
+        "Unable to find nerf model package \"%s\". Check that you have sourced "
+        "the right workspace.",
+        kNerfModelPackage);
+    return false;
+  }
+
+  *model_path = package + kNerfHumanModelPath;
+  return true;
+}
 }  // namespace skinseg
