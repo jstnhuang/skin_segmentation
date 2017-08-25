@@ -119,7 +119,7 @@ catkin_package(
   LIBRARIES
     skin_segmentation_calibration
     skin_segmentation_labeling
-    skin_segmentation_load_camera_info
+    skin_segmentation_load_configs
     skin_segmentation_nerf
     skin_segmentation_projection
     skin_segmentation_snapshot
@@ -170,9 +170,9 @@ target_link_libraries(skin_segmentation_labeling
   ${OpenCV_LIBRARIES}
 )
 
-add_library(skin_segmentation_load_camera_info src/load_camera_info.cpp)
-add_dependencies(skin_segmentation_load_camera_info ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(skin_segmentation_load_camera_info
+add_library(skin_segmentation_load_configs src/load_configs.cpp)
+add_dependencies(skin_segmentation_load_configs ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_load_configs
   ${catkin_LIBRARIES}
 )
 
@@ -223,7 +223,7 @@ add_executable(skin_segmentation_label_data_main src/label_data_main.cpp)
 set_target_properties(skin_segmentation_label_data_main PROPERTIES OUTPUT_NAME label_data PREFIX "")
 add_dependencies(skin_segmentation_label_data_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_label_data_main
-  skin_segmentation_load_camera_info
+  skin_segmentation_load_configs
   skin_segmentation_labeling
   skin_segmentation_nerf
   ${catkin_LIBRARIES}
@@ -241,7 +241,7 @@ add_executable(skin_segmentation_projection_demo_main src/projection_demo_main.c
 set_target_properties(skin_segmentation_projection_demo_main PROPERTIES OUTPUT_NAME projection_demo PREFIX "")
 add_dependencies(skin_segmentation_projection_demo_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_projection_demo_main
-  skin_segmentation_load_camera_info
+  skin_segmentation_load_configs
   skin_segmentation_projection
   skin_segmentation_snapshot
   skin_segmentation_thresholding

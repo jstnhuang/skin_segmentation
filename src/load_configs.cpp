@@ -1,4 +1,4 @@
-#include "skin_segmentation/load_camera_info.h"
+#include "skin_segmentation/load_configs.h"
 
 #include "camera_calibration_parsers/parse.h"
 #include "ros/ros.h"

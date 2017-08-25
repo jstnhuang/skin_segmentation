@@ -6,7 +6,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
-#include "skin_segmentation/load_camera_info.h"
+#include "skin_segmentation/load_configs.h"
 #include "skin_segmentation/projection.h"
 #include "skin_segmentation/rgbdt_data.h"
 #include "skin_segmentation/snapshot.h"

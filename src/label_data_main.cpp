@@ -26,7 +26,7 @@
 
 #include "skin_segmentation/constants.h"
 #include "skin_segmentation/labeling.h"
-#include "skin_segmentation/load_camera_info.h"
+#include "skin_segmentation/load_configs.h"
 #include "skin_segmentation/nerf.h"
 #include "skin_segmentation/projection.h"
 

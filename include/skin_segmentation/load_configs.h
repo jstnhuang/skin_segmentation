@@ -1,5 +1,5 @@
-#ifndef _SKINSEG_LOAD_CAMERA_INFO_H_
-#define _SKINSEG_LOAD_CAMERA_INFO_H_
+#ifndef _SKINSEG_LOAD_CONFIGS_H_
+#define _SKINSEG_LOAD_CONFIGS_H_
 
 // This library only exists because you cannot include "rosbag/bag.h" and
 // "rospack/rospack.h" in the same compilation unit, for some reason.
@@ -16,4 +16,4 @@ bool GetCameraInfos(sensor_msgs::CameraInfo* rgb_info,
 bool GetNerfModelPath(std::string* model_path);
 }  // namespace skinseg
 
-#endif  // _SKINSEG_LOAD_CAMERA_INFO_H_
+#endif  // _SKINSEG_LOAD_CONFIGS_H_

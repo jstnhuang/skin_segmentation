@@ -7,7 +7,7 @@
 #include "optimization/optimization_parameters.h"
 
 #include "skin_segmentation/constants.h"
-#include "skin_segmentation/load_camera_info.h"
+#include "skin_segmentation/load_configs.h"
 
 namespace skinseg {
 void BuildNerf(Nerf* nerf) {
