@@ -61,7 +61,9 @@ flags = [
 '-I',
 '/usr/local/cuda/include',
 '-I',
-'/usr/local/cuda/samples/common/inc'
+'/usr/local/cuda/samples/common/inc',
+'-I',
+'../nerf_b/include'
 ]
 
 # Set this to the absolute path to the folder (NOT the file!) containing the
