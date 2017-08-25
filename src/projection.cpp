@@ -3,6 +3,7 @@
 #include <cuda_runtime.h>
 #include <algorithm>
 
+#undef Success  // Evil workaround. nerf includes glx, which defines this again
 #include "Eigen/Dense"
 #include "cv_bridge/cv_bridge.h"
 #include "depth_image_proc/depth_traits.h"

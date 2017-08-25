@@ -23,15 +23,16 @@ void BuildNerf(Nerf* nerf) {
 
   sensor_msgs::CameraInfo rgb_info, thermal_info;
   GetCameraInfos(&rgb_info, &thermal_info);
-  nerf::RosObservation observation(kRgbTopic, kDepthTopic, rgb_info, rgb_info);
-  observation.setupShadowMap(nerf::CameraParameters(
+  nerf::RosObservation* observation =
+      new nerf::RosObservation(kRgbTopic, kDepthTopic, rgb_info, rgb_info);
+  observation->setupShadowMap(nerf::CameraParameters(
       make_float2(100.0, 100.0), make_float2(64.0, 53.0), make_int2(128, 106)));
-  observation.setNeighborFilterParameters(
+  observation->setNeighborFilterParameters(
       run_neighbor_filter, neighbor_filter_threshold, required_neighbors);
   nerf::DualQuaternion floor = nerf::DualQuaternion::TranslateEuler(
       make_float3(floor_tx, floor_ty, floor_tz),
       make_float3(floor_rx, floor_ry, floor_rz));
-  observation.addPlane(floor);
+  observation->addPlane(floor);
   nerf->observation = observation;
 
   std::string model_path("");
@@ -49,9 +50,8 @@ void BuildNerf(Nerf* nerf) {
   nerf->model_instance->addToControl(1, 0.5f);
   nerf->model_instance->addToControl(2, 2.f);
   nerf->model_instance->addToControl(5, 3.1415926f);
-  nerf::Optimizer optimizer(&observation);
-  nerf->optimizer = optimizer;
-  nerf->optimizer.addInstance(nerf->model_instance);
+  nerf->optimizer = new nerf::Optimizer(observation);
+  nerf->optimizer->addInstance(nerf->model_instance);
 
   int poseIterations = 15;
   bool updateControls = true;
@@ -66,13 +66,6 @@ void BuildNerf(Nerf* nerf) {
   float stiffness = 0.;
   bool interpolateAssociation = true;
   float obsToModBlend = 0.f;
-  bool resetPose = false;
-  bool resetVertexOffset = false;
-
-  int timer = 0;
-  bool step = false;
-  bool run = false;
-  bool sliderControlled = false;
 
   nerf->opt_parameters.controlIterations = poseIterations;
   nerf->opt_parameters.updateControls = updateControls;

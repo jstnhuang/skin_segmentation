@@ -4,13 +4,14 @@
 #include "rosbag/bag.h"
 #include "sensor_msgs/Image.h"
 
+#include "skin_segmentation/nerf.h"
 #include "skin_segmentation/projection.h"
 
 namespace skinseg {
 class Labeling {
  public:
   // Takes in an open bag to write to.
-  Labeling(const Projection& projection, rosbag::Bag* output_bag);
+  Labeling(const Projection& projection, Nerf* nerf, rosbag::Bag* output_bag);
 
   void Process(const sensor_msgs::Image::ConstPtr& rgb,
                const sensor_msgs::Image::ConstPtr& depth,
@@ -21,6 +22,7 @@ class Labeling {
 
  private:
   Projection projection_;
+  Nerf* nerf_;
   rosbag::Bag* output_bag_;
   bool debug_;
 };

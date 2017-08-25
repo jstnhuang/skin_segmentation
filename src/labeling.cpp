@@ -9,14 +9,19 @@
 #include "sensor_msgs/Image.h"
 
 #include "skin_segmentation/constants.h"
+#include "skin_segmentation/nerf.h"
 #include "skin_segmentation/opencv_utils.h"
 #include "skin_segmentation/projection.h"
 
 using sensor_msgs::Image;
 
 namespace skinseg {
-Labeling::Labeling(const Projection& projection, rosbag::Bag* output_bag)
-    : projection_(projection), output_bag_(output_bag), debug_(false) {}
+Labeling::Labeling(const Projection& projection, Nerf* nerf,
+                   rosbag::Bag* output_bag)
+    : projection_(projection),
+      nerf_(nerf),
+      output_bag_(output_bag),
+      debug_(false) {}
 
 void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
                        const Image::ConstPtr& thermal) {

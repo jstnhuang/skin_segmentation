@@ -149,6 +149,7 @@ include_directories(
   ${eigen3_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
   ${CUDA_INCLUDE_DIRS}
+  ${CUDA_TOOLKIT_ROOT_DIR}/samples/common/inc
   ${OpenCV_INCLUDE_DIRS}
 )
 
@@ -164,6 +165,7 @@ add_library(skin_segmentation_labeling src/labeling.cpp)
 add_dependencies(skin_segmentation_labeling ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_labeling
   skin_segmentation_projection
+  skin_segmentation_nerf
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
@@ -223,6 +225,7 @@ add_dependencies(skin_segmentation_label_data_main ${skin_segmentation_EXPORTED_
 target_link_libraries(skin_segmentation_label_data_main
   skin_segmentation_load_camera_info
   skin_segmentation_labeling
+  skin_segmentation_nerf
   ${catkin_LIBRARIES}
 )
 

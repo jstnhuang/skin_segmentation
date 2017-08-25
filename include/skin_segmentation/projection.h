@@ -4,6 +4,7 @@
 #include <list>
 #include <map>
 
+#undef Success  // Evil workaround. nerf includes glx, which defines this again
 #include "Eigen/Dense"
 #include "cv_bridge/cv_bridge.h"
 #include "image_geometry/pinhole_camera_model.h"

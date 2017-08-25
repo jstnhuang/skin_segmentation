@@ -6,12 +6,18 @@
 #include <string>
 #include <vector>
 
+#undef Success  // Evil workaround. nerf includes glx, which defines this again
 #include "Eigen/Dense"
 #include "camera_calibration_parsers/parse.h"
 #include "message_filters/cache.h"
 #include "message_filters/subscriber.h"
 #include "message_filters/sync_policies/approximate_time.h"
 #include "message_filters/synchronizer.h"
+#include "model/model.h"
+#include "model/model_instance.h"
+#include "observation/ros_observation.h"
+#include "optimization/optimization_parameters.h"
+#include "optimization/optimizer.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
@@ -21,6 +27,7 @@
 #include "skin_segmentation/constants.h"
 #include "skin_segmentation/labeling.h"
 #include "skin_segmentation/load_camera_info.h"
+#include "skin_segmentation/nerf.h"
 #include "skin_segmentation/projection.h"
 
 using sensor_msgs::CameraInfo;
@@ -59,10 +66,13 @@ int main(int argc, char** argv) {
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
   skinseg::Projection projection(rgb_info, thermal_info, rgb_in_thermal);
-  // projection.set_debug(true);
   rosbag::Bag output_bag;
   output_bag.open(argv[2], rosbag::bagmode::Write);
-  skinseg::Labeling labeling(projection, &output_bag);
+
+  // Set up nerf person tracker
+  skinseg::Nerf nerf;
+  skinseg::BuildNerf(&nerf);
+  skinseg::Labeling labeling(projection, &nerf, &output_bag);
 
   message_filters::Cache<Image> rgb_cache(100);
   message_filters::Cache<Image> depth_cache(100);
@@ -81,10 +91,19 @@ int main(int argc, char** argv) {
   topics.push_back(skinseg::kThermalTopic);
   rosbag::View view(input_bag, rosbag::TopicQuery(topics));
 
+  bool debug;
+  ros::param::param("label_data_debug", debug, false);
+  labeling.set_debug(debug);
+
+  int max_images;  // Max number of images to process, 0 for all.
+  ros::param::param("label_data_max_images", max_images, 0);
+
   int num_msgs = view.size();
   int i = 0;
-
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
+    if (max_images > 0 && i >= max_images) {
+      break;
+    }
     if (it->getTopic() == skinseg::kRgbTopic) {
       rgb_cache.add(it->instantiate<Image>());
     } else if (it->getTopic() == skinseg::kDepthTopic) {
