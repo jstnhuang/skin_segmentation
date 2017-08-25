@@ -17,3 +17,16 @@ We recommend ignoring the RGB intrinsics as it won't be better than the factory 
 ## Installation
 Requires CUDA to be installed (we are using CUDA 8, compatability 6.1).
 We make use of Eigen inside CUDA kernels, so you must install Eigen 3.3 or higher to your system.
+
+## Development
+### Error: preprocess symbol Success is defined
+If you encounter this error:
+```
+#error The preprocessor symbol 'Success' is defined, possibly by the X11 header file X.h
+```
+
+Add the following before including Eigen:
+```cpp
+#undef Success
+#include "Eigen/Dense"
+```
