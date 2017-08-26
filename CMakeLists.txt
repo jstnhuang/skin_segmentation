@@ -13,13 +13,14 @@ find_package(catkin REQUIRED COMPONENTS
   image_geometry
   message_filters
   nerf_b
-  sensor_msgs
-  tf
-  tf_conversions
   rosbag
   roscpp
   rospack
   rospy
+  sensor_msgs
+  tf
+  tf_conversions
+  visualization_msgs
 )
 
 ## System dependencies are found with CMake's conventions
@@ -141,6 +142,8 @@ catkin_package(
 ## Build ##
 ###########
 
+add_definitions(-DCUDA_BUILD)
+
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
@@ -179,6 +182,7 @@ target_link_libraries(skin_segmentation_load_configs
 add_library(skin_segmentation_nerf src/nerf.cpp)
 add_dependencies(skin_segmentation_nerf ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_nerf
+  skin_segmentation_load_configs
   ${catkin_LIBRARIES}
 )
 
