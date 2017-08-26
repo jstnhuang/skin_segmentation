@@ -11,21 +11,6 @@
 
 using sensor_msgs::Image;
 
-struct CameraData {
-  double inv_depth_fx;
-  double inv_depth_fy;
-  double depth_cx;
-  double depth_cy;
-  double depth_Tx;
-  double depth_Ty;
-  double thermal_fx;
-  double thermal_fy;
-  double thermal_cx;
-  double thermal_cy;
-  double thermal_Tx;
-  double thermal_Ty;
-};
-
 namespace skinseg {
 __global__ void gpu_ProjectThermalOnRgb(
     uint16_t* depth_img, uint16_t* thermal, float* z_buffer, int rgbd_rows,
@@ -168,18 +153,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
              cudaMemcpyHostToDevice);
 
   CameraData camera_data;
-  camera_data.inv_depth_fx = 1.0 / rgbd_model_.fx();
-  camera_data.inv_depth_fy = 1.0 / rgbd_model_.fy();
-  camera_data.depth_cx = rgbd_model_.cx();
-  camera_data.depth_cy = rgbd_model_.cy();
-  camera_data.depth_Tx = rgbd_model_.Tx();
-  camera_data.depth_Ty = rgbd_model_.Ty();
-  camera_data.thermal_fx = thermal_model_.fx();
-  camera_data.thermal_fy = thermal_model_.fy();
-  camera_data.thermal_cx = thermal_model_.cx();
-  camera_data.thermal_cy = thermal_model_.cy();
-  camera_data.thermal_Tx = thermal_model_.Tx();
-  camera_data.thermal_Ty = thermal_model_.Ty();
+  GetCameraData(&camera_data);
 
   // GPU output
   uint16_t* d_thermal_mat;

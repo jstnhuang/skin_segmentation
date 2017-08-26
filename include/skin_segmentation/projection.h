@@ -12,6 +12,27 @@
 #include "sensor_msgs/Image.h"
 
 namespace skinseg {
+
+// Similar to sensor_msgs::CameraInfo, but in form that's easier to use in inner
+// loops.
+struct CameraData {
+  double inv_depth_fx;
+  double inv_depth_fy;
+  double depth_cx;
+  double depth_cy;
+  double depth_Tx;
+  double depth_Ty;
+  double thermal_fx;
+  double thermal_fy;
+  double thermal_cx;
+  double thermal_cy;
+  double thermal_Tx;
+  double thermal_Ty;
+};
+
+void GetCameraData(const sensor_msgs::CameraInfo& camera_info,
+                   CameraData* camera_data);
+
 class Projection {
  public:
   Projection(const sensor_msgs::CameraInfo& rgbd_info,
@@ -31,6 +52,8 @@ class Projection {
   float GetRgbDepth(const cv::Mat& depth_image,
                     const cv::Point2d& rgb_pt) const;
 
+  void GetCameraData(CameraData* data);
+
   static void RgbdMouseCallback(int event, int x, int y, int flags, void* data);
   static void ThermalMouseCallback(int event, int x, int y, int flags,
                                    void* data);
@@ -48,6 +71,7 @@ class Projection {
   cv::Mat thermal_;
   std::map<std::pair<int, int>, std::list<cv::Point2d> > thermal_to_rgb_;
 };
+
 }  // namespace skinseg
 
 #endif  // _SKINSEG_PROJECTION_H_

@@ -158,4 +158,19 @@ inline cv::Point2d Projection::GetThermalPixel(
   // it seems to make it worse.
   return thermal_model_.project3dToPixel(xyz_thermal);
 }
+
+void Projection::GetCameraData(CameraData* data) {
+  data->inv_depth_fx = 1.0 / rgbd_model_.fx();
+  data->inv_depth_fy = 1.0 / rgbd_model_.fy();
+  data->depth_cx = rgbd_model_.cx();
+  data->depth_cy = rgbd_model_.cy();
+  data->depth_Tx = rgbd_model_.Tx();
+  data->depth_Ty = rgbd_model_.Ty();
+  data->thermal_fx = thermal_model_.fx();
+  data->thermal_fy = thermal_model_.fy();
+  data->thermal_cx = thermal_model_.cx();
+  data->thermal_cy = thermal_model_.cy();
+  data->thermal_Tx = thermal_model_.Tx();
+  data->thermal_Ty = thermal_model_.Ty();
+}
 }  // namespace skinseg
