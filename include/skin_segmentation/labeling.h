@@ -1,6 +1,7 @@
 #ifndef _SKINSEG_LABELING_H_
 #define _SKINSEG_LABELING_H_
 
+#include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/Image.h"
 
@@ -25,6 +26,12 @@ class Labeling {
   Nerf* nerf_;
   rosbag::Bag* output_bag_;
   bool debug_;
+  ros::NodeHandle nh_;
+  ros::Publisher skeleton_pub_;
+  ros::Publisher rgb_pub_;
+  ros::Publisher depth_pub_;
+
+  ros::Time first_msg_time_;
 };
 }  // namespace skinseg
 

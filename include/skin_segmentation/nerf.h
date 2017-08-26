@@ -6,6 +6,7 @@
 #include "observation/ros_observation.h"
 #include "optimization/optimization_parameters.h"
 #include "optimization/optimizer.h"
+#include "visualization_msgs/MarkerArray.h"
 
 namespace skinseg {
 // Wrapper class for nerf body tracker.
@@ -18,6 +19,9 @@ struct Nerf {
 };
 
 void BuildNerf(Nerf* nerf);
+
+void SkeletonMarkerArray(Nerf* nerf, float scale,
+                         visualization_msgs::MarkerArray* marker_array);
 }  // namespace skinseg
 
 #endif  // _SKINSEG_NERF_H_
