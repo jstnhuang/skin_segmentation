@@ -5,6 +5,8 @@
 #include "model/model_instance.h"
 #include "observation/ros_observation.h"
 #include "optimization/optimization_parameters.h"
+#include "visualization_msgs/Marker.h"
+#include "visualization_msgs/MarkerArray.h"
 
 #include "skin_segmentation/constants.h"
 #include "skin_segmentation/load_configs.h"
@@ -15,9 +17,9 @@ void BuildNerf(Nerf* nerf) {
   float neighbor_filter_threshold = 0.02;
   int required_neighbors = 4;
   float floor_tx = 0;
-  float floor_ty = 0;
-  float floor_tz = 0;
-  float floor_rx = 0;
+  float floor_ty = 1.143;
+  float floor_tz = 1.714;
+  float floor_rx = 0.2243;
   float floor_ry = 0;
   float floor_rz = 0;
 
@@ -54,17 +56,17 @@ void BuildNerf(Nerf* nerf) {
 
   int poseIterations = 15;
   bool updateControls = true;
-  float poseRegularization = 0;
-  int shapeIterations = 0;
+  float poseRegularization = 0.5;
+  int shapeIterations = 2;
   bool updateShape = true;
-  float shapeRegularization = 0;
-  float shapeMagnitudePenalty = 0;
-  float shapeNeighborPenalty = 0;
+  float shapeRegularization = 2.5;
+  float shapeMagnitudePenalty = 0.25;
+  float shapeNeighborPenalty = 0.75;
 
   bool computeStiffness = true;
-  float stiffness = 0.;
+  float stiffness = 5;
   bool interpolateAssociation = true;
-  float obsToModBlend = 0.f;
+  float obsToModBlend = 0.25;
 
   nerf->opt_parameters.controlIterations = poseIterations;
   nerf->opt_parameters.updateControls = updateControls;
@@ -126,4 +128,34 @@ void BuildNerf(Nerf* nerf) {
   nerf->opt_parameters.shapeResidualParameters.huberDelta = 1.f;
 }
 
+void SkeletonMarkerArray(Nerf* nerf, const float scale,
+                         visualization_msgs::MarkerArray* marker_array) {
+  const nerf::KinematicHierarchy* kh = nerf->model->getKinematics();
+  const nerf::DualQuaternion* joint_poses =
+      nerf->model_instance->getHostJointPose();
+  for (int i = 0; i < kh->getNumJoints(); ++i) {
+    float3 position = scale * (joint_poses[i] * make_float3(0, 0, 0));
+    int parent_i = kh->getHostJointOrder()[i].parent;
+    float3 parent_position =
+        scale * (joint_poses[parent_i] * make_float3(0, 0, 0));
+    visualization_msgs::Marker marker;
+    marker.header.frame_id = "camera_depth_optical_frame";
+    marker.id = i;
+    marker.color.r = 1;
+    marker.color.a = 1;
+    geometry_msgs::Point parent_pt;
+    parent_pt.x = parent_position.x;
+    parent_pt.y = parent_position.y;
+    parent_pt.z = parent_position.z;
+    marker.points.push_back(parent_pt);
+    geometry_msgs::Point pt;
+    pt.x = position.x;
+    pt.y = position.y;
+    pt.z = position.z;
+    marker.points.push_back(pt);
+    marker.scale.x = 0.01;
+    marker.scale.y = 0.015;
+    marker_array->markers.push_back(marker);
+  }
+}
 }  // namespace skinseg
