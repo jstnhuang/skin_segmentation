@@ -164,7 +164,7 @@ target_link_libraries(skin_segmentation_calibration
   ${OpenCV_LIBRARIES}
 )
 
-add_library(skin_segmentation_labeling src/labeling.cpp)
+cuda_add_library(skin_segmentation_labeling src/labeling.cpp src/labeling.cu)
 add_dependencies(skin_segmentation_labeling ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_labeling
   skin_segmentation_projection

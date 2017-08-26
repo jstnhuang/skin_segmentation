@@ -32,7 +32,13 @@ class Labeling {
   ros::Publisher depth_pub_;
 
   ros::Time first_msg_time_;
+  CameraData camera_data_;
 };
+
+void ComputeHandMask(const sensor_msgs::Image& depth,
+                     const CameraData& camera_data,
+                     const Eigen::Affine3f& l_forearm_pose,
+                     const Eigen::Affine3f& r_forearm_pose, uint8_t* mask);
 }  // namespace skinseg
 
 #endif  // _SKINSEG_LABELING_H_

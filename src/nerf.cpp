@@ -139,7 +139,7 @@ void SkeletonMarkerArray(Nerf* nerf, const float scale,
     float3 parent_position =
         scale * (joint_poses[parent_i] * make_float3(0, 0, 0));
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "camera_depth_optical_frame";
+    marker.header.frame_id = "camera_rgb_optical_frame";
     marker.id = i;
     marker.color.r = 1;
     marker.color.a = 1;

@@ -1,7 +1,7 @@
 <launch>
   <include file="$(find openni2_launch)/launch/openni2.launch">
     <arg name="depth_registration" value="true" />
-    <arg name="publish_tf" value="true" />
+    <arg name="publish_tf" value="false" />
   </include>
   <group ns="/ici/ir_camera">
     <node pkg="image_proc" type="image_proc" name="thermal_image_proc" />
@@ -13,6 +13,5 @@
     <remap from="depth/image_rect" to="/camera/depth/image_rect" />
   </node>
   <node pkg="skin_segmentation" type="normalization" name="thermal_normalization" />
-  <node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1 0 0 0 world camera_link 100" />
-  <node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0.00021494608 -0.035 0.012 -0.0319218727 -0.00226672402 0.000216168283 0.999448448 camera_rgb_optical_frame thermal_camera_frame 100" />
+  <include file="$(find skin_segmentation)/launch/tf_frames.launch" />
 </launch>
