@@ -68,8 +68,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     visualization_msgs::MarkerArray skeleton;
     SkeletonMarkerArray(nerf_, 0.95, &skeleton);
 
-    rgb_pub_.publish(rgb);
-    depth_pub_.publish(depth);
+    sensor_msgs::Image rgb_now = *rgb;
+    rgb_now.header.stamp = ros::Time::now();
+    sensor_msgs::Image depth_now = *depth;
+    depth_now.header.stamp = ros::Time::now();
+    rgb_pub_.publish(rgb_now);
+    depth_pub_.publish(depth_now);
     skeleton_pub_.publish(skeleton);
   }
 
@@ -92,12 +96,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_forearm_pose.normalize();
   r_forearm_pose.normalize();
   Eigen::Affine3f l_matrix(l_forearm_pose.ToMatrix());
-  Eigen::Affine3f r_matrix(r_forearm_pose.ToMatrix());
-
-  if (debug_) {
-    ROS_INFO_STREAM("l: \n" << l_matrix.matrix());
-    ROS_INFO_STREAM("r: \n" << r_matrix.matrix());
-  }
+  Eigen::Matrix4f r_pose_mat = r_forearm_pose.ToMatrix();
+  Eigen::Matrix3f r_pose_rot = r_pose_mat.topLeftCorner(3, 3);
+  r_pose_rot.col(0) *= -1;
+  r_pose_rot.col(1) = r_pose_rot.col(2).cross(r_pose_rot.col(0));
+  r_pose_mat.topLeftCorner(3, 3) = r_pose_rot;
+  Eigen::Affine3f r_matrix(r_pose_mat);
 
   cv::Mat mask(rgb->height, rgb->width, CV_8UC1, cv::Scalar(0));
   ComputeHandMask(*depth, camera_data_, l_matrix, r_matrix, mask.data);
@@ -120,20 +124,20 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
 
   cv::Mat overlay = rgb_bridge->image;
-  overlay.setTo(cv::Scalar(0, 0, 255), labels_mat != 0);
+  overlay.setTo(cv::Scalar(0, 0, 255), labels != 0);
   cv::namedWindow("Overlay");
   cv::imshow("Overlay", overlay);
   cv_bridge::CvImage overlay_bridge(
       rgb->header, sensor_msgs::image_encodings::BGR8, overlay);
 
-  const float min_x = 0;
-  const float max_x = 0.4;
-  const float min_y = -0.1;
-  const float max_y = 0.1;
-  const float min_z = -0.1;
-  const float max_z = 0.1;
+  const float min_x = 0.075;
+  const float max_x = 0.3;
+  const float min_y = -0.09;
+  const float max_y = 0.09;
+  const float min_z = -0.09;
+  const float max_z = 0.09;
 
-  Eigen::Affine3f center = Eigen::Affine3f::Identity();
+  Eigen::Affine3f center(Eigen::Affine3f::Identity());
   center(0, 3) = (max_x + min_x) / 2;
   center(1, 3) = (max_y + min_y) / 2;
   center(2, 3) = (max_z + min_z) / 2;
@@ -151,9 +155,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_box.scale.z = max_z - min_z;
 
   Eigen::Affine3f l_pose = l_matrix * center;
-  l_box.pose.position.x = l_pose.translation().x();
-  l_box.pose.position.y = l_pose.translation().y();
-  l_box.pose.position.z = l_pose.translation().z();
+  l_box.pose.position.x = 0.95 * l_pose.translation().x();
+  l_box.pose.position.y = 0.95 * l_pose.translation().y();
+  l_box.pose.position.z = 0.95 * l_pose.translation().z();
   Eigen::Quaternionf l_rot(l_pose.rotation());
   l_box.pose.orientation.w = l_rot.w();
   l_box.pose.orientation.x = l_rot.x();
@@ -186,15 +190,29 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   r_box.scale.z = max_z - min_z;
 
   Eigen::Affine3f r_pose = r_matrix * center;
-  r_box.pose.position.x = r_pose.translation().x();
-  r_box.pose.position.y = r_pose.translation().y();
-  r_box.pose.position.z = r_pose.translation().z();
+  r_box.pose.position.x = 0.95 * r_pose.translation().x();
+  r_box.pose.position.y = 0.95 * r_pose.translation().y();
+  r_box.pose.position.z = 0.95 * r_pose.translation().z();
   Eigen::Quaternionf r_rot(r_pose.rotation());
   r_box.pose.orientation.w = r_rot.w();
   r_box.pose.orientation.x = r_rot.x();
   r_box.pose.orientation.y = r_rot.y();
   r_box.pose.orientation.z = r_rot.z();
   boxes.markers.push_back(r_box);
+
+  visualization_msgs::Marker r_pt;
+  r_pt.header.frame_id = "camera_rgb_optical_frame";
+  r_pt.type = visualization_msgs::Marker::SPHERE;
+  r_pt.ns = "hand_pt";
+  r_pt.id = 1;
+  r_pt.color.g = 1;
+  r_pt.color.a = 1;
+  r_pt.scale.x = 0.04;
+  r_pt.scale.y = 0.04;
+  r_pt.scale.z = 0.04;
+  r_pt.pose = r_box.pose;
+  boxes.markers.push_back(r_pt);
+
   skeleton_pub_.publish(boxes);
 
   // Even though there is some time difference, we are assuming that we have

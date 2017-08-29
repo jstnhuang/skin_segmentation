@@ -56,12 +56,12 @@ __global__ void gpu_ComputeHandMask(const uint16_t* depth_data,
   Eigen::Vector3f pos_in_l_frame = *world_in_left * xyz;
   Eigen::Vector3f pos_in_r_frame = *world_in_right * xyz;
 
-  const float min_x = 0;
-  const float max_x = 0.4;
-  const float min_y = -0.1;
-  const float max_y = 0.1;
-  const float min_z = -0.1;
-  const float max_z = 0.1;
+  const float min_x = 0.075;
+  const float max_x = 0.3;
+  const float min_y = -0.09;
+  const float max_y = 0.09;
+  const float min_z = -0.09;
+  const float max_z = 0.09;
   bool in_left_box =
       (pos_in_l_frame.x() > min_x && pos_in_l_frame.x() < max_x &&
        pos_in_l_frame.y() > min_y && pos_in_l_frame.y() < max_y &&
