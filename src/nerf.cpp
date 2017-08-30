@@ -12,7 +12,7 @@
 #include "skin_segmentation/load_configs.h"
 
 namespace skinseg {
-void BuildNerf(Nerf* nerf) {
+void BuildNerf(Nerf* nerf, float model_scale) {
   bool run_neighbor_filter = true;
   float neighbor_filter_threshold = 0.02;
   int required_neighbors = 4;
@@ -51,6 +51,7 @@ void BuildNerf(Nerf* nerf) {
   nerf->model_instance->addToControl(1, 0.5f);
   nerf->model_instance->addToControl(2, 2.f);
   nerf->model_instance->addToControl(5, 3.1415926f);
+  nerf->model_instance->setScale(model_scale);
   nerf->optimizer = new nerf::Optimizer(observation);
   nerf->optimizer->addInstance(nerf->model_instance);
 

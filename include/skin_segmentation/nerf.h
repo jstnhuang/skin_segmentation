@@ -18,7 +18,7 @@ struct Nerf {
   nerf::OptimizationParameters opt_parameters;
 };
 
-void BuildNerf(Nerf* nerf);
+void BuildNerf(Nerf* nerf, float scale);
 
 void SkeletonMarkerArray(Nerf* nerf, float scale,
                          visualization_msgs::MarkerArray* marker_array);

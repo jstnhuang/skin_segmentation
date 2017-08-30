@@ -71,9 +71,9 @@ int main(int argc, char** argv) {
 
   // Set up nerf person tracker
   skinseg::Nerf nerf;
-  skinseg::BuildNerf(&nerf);
   float model_scale;
   ros::param::param("label_data_model_scale", model_scale, 0.95f);
+  skinseg::BuildNerf(&nerf, model_scale);
   nerf.model_instance->setScale(model_scale);
   skinseg::Labeling labeling(projection, &nerf, &output_bag);
 
