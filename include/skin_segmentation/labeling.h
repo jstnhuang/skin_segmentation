@@ -40,7 +40,7 @@ class Labeling {
 };
 
 void ComputeHandMask(const sensor_msgs::Image& depth,
-                     const CameraData& camera_data, float model_scale,
+                     const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask);
 }  // namespace skinseg

@@ -27,7 +27,7 @@ struct CameraData {
 namespace skinseg {
 __global__ void gpu_ComputeHandMask(const uint16_t* depth_data,
                                     const int height, const int width,
-                                    float model_scale, CameraData camera_data,
+                                    CameraData camera_data,
                                     Eigen::Affine3f* world_in_left,
                                     Eigen::Affine3f* world_in_right,
                                     uint8_t* mask) {
@@ -74,7 +74,7 @@ __global__ void gpu_ComputeHandMask(const uint16_t* depth_data,
 }
 
 void ComputeHandMask(const sensor_msgs::Image& depth,
-                     const CameraData& camera_data, float model_scale,
+                     const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask) {
   int height = depth.height;
@@ -108,8 +108,8 @@ void ComputeHandMask(const sensor_msgs::Image& depth,
   dim3 numBlocks(ceil((float)width / threadsPerBlock.x),
                  ceil((float)height / threadsPerBlock.y));
   gpu_ComputeHandMask<<<numBlocks, threadsPerBlock>>>(
-      d_depth, height, width, model_scale, camera_data, d_l_forearm_pose,
-      d_r_forearm_pose, d_mask);
+      d_depth, height, width, camera_data, d_l_forearm_pose, d_r_forearm_pose,
+      d_mask);
 
   HandleError(cudaMemcpy(mask, d_mask, mask_size, cudaMemcpyDeviceToHost));
   HandleError(cudaFree(d_depth));

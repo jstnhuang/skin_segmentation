@@ -33,6 +33,7 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       depth_pub_(nh_.advertise<sensor_msgs::Image>(kDepthTopic, 1)),
       depth_info_pub_(
           nh_.advertise<sensor_msgs::CameraInfo>(kDepthInfoTopic, 1)),
+      thermal_pub_(nh_.advertise<sensor_msgs::Image>(kThermalTopic, 1)),
       first_msg_time_(0),
       camera_data_(),
       rgbd_info_() {
@@ -53,17 +54,14 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     return;
   }
 
-  ROS_INFO("RGB - Depth skew: %f, RGB-Thermal skew: %f",
-           (rgb->header.stamp - depth->header.stamp).toSec(),
-           (rgb->header.stamp - thermal->header.stamp).toSec());
+  ROS_INFO("Depth - thermal skew: %f",
+           (depth->header.stamp - thermal->header.stamp).toSec());
   if (first_msg_time_.isZero()) {
     first_msg_time_ = rgb->header.stamp;
   }
 
   double thermal_threshold;
   ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
-  double model_scale;
-  ros::param::param("model_scale", model_scale, 0.95);
 
   cv::Mat thermal_projected;
   projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected);
@@ -71,6 +69,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv::Mat thermal_fp;
   thermal_projected.convertTo(thermal_fp, CV_32F);
 
+  float model_scale = nerf_->model_instance->getScale();
   if (debug_) {
     visualization_msgs::MarkerArray skeleton;
     SkeletonMarkerArray(nerf_, model_scale, &skeleton);
@@ -82,6 +81,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     depth_now.header.stamp = now;
     rgb_pub_.publish(rgb_now);
     depth_pub_.publish(depth_now);
+    sensor_msgs::Image thermal_now = *thermal;
+    thermal_now.header.stamp = now;
+    thermal_pub_.publish(thermal_now);
+
     rgbd_info_.header.stamp = now;
     depth_info_pub_.publish(rgbd_info_);
     skeleton_pub_.publish(skeleton);
@@ -113,9 +116,11 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   r_pose_mat.topLeftCorner(3, 3) = r_pose_rot;
   Eigen::Affine3f r_matrix(r_pose_mat);
 
+  l_matrix.translation() *= model_scale;
+  r_matrix.translation() *= model_scale;
+
   cv::Mat mask(rgb->height, rgb->width, CV_8UC1, cv::Scalar(0));
-  ComputeHandMask(*depth, camera_data_, model_scale, l_matrix, r_matrix,
-                  mask.data);
+  ComputeHandMask(*depth, camera_data_, l_matrix, r_matrix, mask.data);
 
   mask *= 255;
   cv::namedWindow("Hand mask");
@@ -160,15 +165,15 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_box.ns = "hand_box";
   l_box.id = 0;
   l_box.color.b = 1;
-  l_box.color.a = 0.6;
+  l_box.color.a = 0.3;
   l_box.scale.x = max_x - min_x;
   l_box.scale.y = max_y - min_y;
   l_box.scale.z = max_z - min_z;
 
   Eigen::Affine3f l_pose = l_matrix * center;
-  l_box.pose.position.x = 0.95 * l_pose.translation().x();
-  l_box.pose.position.y = 0.95 * l_pose.translation().y();
-  l_box.pose.position.z = 0.95 * l_pose.translation().z();
+  l_box.pose.position.x = l_pose.translation().x();
+  l_box.pose.position.y = l_pose.translation().y();
+  l_box.pose.position.z = l_pose.translation().z();
   Eigen::Quaternionf l_rot(l_pose.rotation());
   l_box.pose.orientation.w = l_rot.w();
   l_box.pose.orientation.x = l_rot.x();
@@ -195,15 +200,15 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   r_box.ns = "hand_box";
   r_box.id = 1;
   r_box.color.b = 1;
-  r_box.color.a = 0.6;
+  r_box.color.a = 0.3;
   r_box.scale.x = max_x - min_x;
   r_box.scale.y = max_y - min_y;
   r_box.scale.z = max_z - min_z;
 
   Eigen::Affine3f r_pose = r_matrix * center;
-  r_box.pose.position.x = 0.95 * r_pose.translation().x();
-  r_box.pose.position.y = 0.95 * r_pose.translation().y();
-  r_box.pose.position.z = 0.95 * r_pose.translation().z();
+  r_box.pose.position.x = r_pose.translation().x();
+  r_box.pose.position.y = r_pose.translation().y();
+  r_box.pose.position.z = r_pose.translation().z();
   Eigen::Quaternionf r_rot(r_pose.rotation());
   r_box.pose.orientation.w = r_rot.w();
   r_box.pose.orientation.x = r_rot.x();
