@@ -53,6 +53,7 @@ class Projection {
                     const cv::Point2d& rgb_pt) const;
 
   void GetCameraData(CameraData* data);
+  void GetRgbdCameraInfo(sensor_msgs::CameraInfo* info);
 
   static void RgbdMouseCallback(int event, int x, int y, int flags, void* data);
   static void ThermalMouseCallback(int event, int x, int y, int flags,

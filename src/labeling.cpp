@@ -8,6 +8,7 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
+#include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "visualization_msgs/MarkerArray.h"
 
@@ -30,9 +31,13 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
           nh_.advertise<visualization_msgs::MarkerArray>("skeleton", 1)),
       rgb_pub_(nh_.advertise<sensor_msgs::Image>(kRgbTopic, 1)),
       depth_pub_(nh_.advertise<sensor_msgs::Image>(kDepthTopic, 1)),
+      depth_info_pub_(
+          nh_.advertise<sensor_msgs::CameraInfo>(kDepthInfoTopic, 1)),
       first_msg_time_(0),
-      camera_data_() {
+      camera_data_(),
+      rgbd_info_() {
   projection_.GetCameraData(&camera_data_);
+  projection_.GetRgbdCameraInfo(&rgbd_info_);
 }
 
 void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
@@ -57,6 +62,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   double thermal_threshold;
   ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
+  double model_scale;
+  ros::param::param("model_scale", model_scale, 0.95);
 
   cv::Mat thermal_projected;
   projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected);
@@ -66,14 +73,17 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   if (debug_) {
     visualization_msgs::MarkerArray skeleton;
-    SkeletonMarkerArray(nerf_, 0.95, &skeleton);
+    SkeletonMarkerArray(nerf_, model_scale, &skeleton);
 
+    ros::Time now = ros::Time::now();
     sensor_msgs::Image rgb_now = *rgb;
-    rgb_now.header.stamp = ros::Time::now();
+    rgb_now.header.stamp = now;
     sensor_msgs::Image depth_now = *depth;
-    depth_now.header.stamp = ros::Time::now();
+    depth_now.header.stamp = now;
     rgb_pub_.publish(rgb_now);
     depth_pub_.publish(depth_now);
+    rgbd_info_.header.stamp = now;
+    depth_info_pub_.publish(rgbd_info_);
     skeleton_pub_.publish(skeleton);
   }
 
@@ -104,7 +114,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   Eigen::Affine3f r_matrix(r_pose_mat);
 
   cv::Mat mask(rgb->height, rgb->width, CV_8UC1, cv::Scalar(0));
-  ComputeHandMask(*depth, camera_data_, l_matrix, r_matrix, mask.data);
+  ComputeHandMask(*depth, camera_data_, model_scale, l_matrix, r_matrix,
+                  mask.data);
 
   mask *= 255;
   cv::namedWindow("Hand mask");

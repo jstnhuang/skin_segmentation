@@ -173,4 +173,8 @@ void Projection::GetCameraData(CameraData* data) {
   data->thermal_Tx = thermal_model_.Tx();
   data->thermal_Ty = thermal_model_.Ty();
 }
+
+void Projection::GetRgbdCameraInfo(sensor_msgs::CameraInfo* info) {
+  *info = rgbd_info_;
+}
 }  // namespace skinseg

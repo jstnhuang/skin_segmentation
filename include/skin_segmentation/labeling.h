@@ -3,6 +3,7 @@
 
 #include "ros/ros.h"
 #include "rosbag/bag.h"
+#include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
 #include "skin_segmentation/nerf.h"
@@ -30,13 +31,15 @@ class Labeling {
   ros::Publisher skeleton_pub_;
   ros::Publisher rgb_pub_;
   ros::Publisher depth_pub_;
+  ros::Publisher depth_info_pub_;
 
   ros::Time first_msg_time_;
   CameraData camera_data_;
+  sensor_msgs::CameraInfo rgbd_info_;
 };
 
 void ComputeHandMask(const sensor_msgs::Image& depth,
-                     const CameraData& camera_data,
+                     const CameraData& camera_data, float model_scale,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask);
 }  // namespace skinseg

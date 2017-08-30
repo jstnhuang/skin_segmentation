@@ -7,6 +7,9 @@ static const char kThermalConfigPath[] = "/config/thermal_calibration.yml";
 static const char kRgbTopic[] = "/camera/rgb/image_rect_color";
 static const char kDepthTopic[] =
     "/camera/depth_registered/hw_registered/image_rect";
+// Used for viewing depth cloud in Rviz.
+static const char kDepthInfoTopic[] =
+    "/camera/depth_registered/hw_registered/camera_info";
 static const char kThermalTopic[] = "/ici/ir_camera/image_raw";
 static const char kNormalizedThermalTopic[] =
     "/ici/ir_camera/image_normalized_rgb";
