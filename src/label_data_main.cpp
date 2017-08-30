@@ -66,13 +66,15 @@ int main(int argc, char** argv) {
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
 
   skinseg::Projection projection(rgb_info, thermal_info, rgb_in_thermal);
+  projection.set_debug(true);
   rosbag::Bag output_bag;
   output_bag.open(argv[2], rosbag::bagmode::Write);
 
   // Set up nerf person tracker
   skinseg::Nerf nerf;
   float model_scale;
-  ros::param::param("label_data_model_scale", model_scale, 0.95f);
+  ros::param::param("label_data_model_scale", model_scale, 0.92f);
+  ROS_INFO("Model scale: %f", model_scale);
   skinseg::BuildNerf(&nerf, model_scale);
   nerf.model_instance->setScale(model_scale);
   skinseg::Labeling labeling(projection, &nerf, &output_bag);
@@ -82,7 +84,6 @@ int main(int argc, char** argv) {
   message_filters::Cache<Image> thermal_cache(100);
   message_filters::Synchronizer<MyPolicy> sync(MyPolicy(100), rgb_cache,
                                                depth_cache, thermal_cache);
-  // sync.getPolicy()->setMaxIntervalDuration(ros::Duration(0.01));
   sync.registerCallback(&skinseg::Labeling::Process, &labeling);
 
   rosbag::Bag input_bag;
@@ -115,8 +116,10 @@ int main(int argc, char** argv) {
       thermal_cache.add(it->instantiate<Image>());
     }
     ++i;
-    ROS_INFO("Processed image %d of %d (%f)", i, num_msgs,
-             static_cast<float>(i) / num_msgs);
+    if (i % 100 == 0) {
+      ROS_INFO("Processed image %d of %d (%f)", i, num_msgs,
+               static_cast<float>(i) / num_msgs);
+    }
   }
 
   output_bag.close();

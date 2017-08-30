@@ -6,16 +6,36 @@
 #include "opencv2/highgui/highgui.hpp"
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
+#include "sensor_msgs/image_encodings.h"
 
 #include "skin_segmentation/projection.h"
 
 using sensor_msgs::Image;
 
+namespace {
+cv::Mat ConvertToColor(cv::Mat in) {
+  cv::Mat eight_bit;
+  in.convertTo(eight_bit, CV_8UC3);
+  cv::Mat color;
+  cv::cvtColor(eight_bit, color, cv::COLOR_GRAY2RGB);
+  return color;
+}
+
+// Returns a mask of non-zero values in the input matrix.
+cv::Mat NonZeroMask(cv::InputArray in) {
+  cv::Mat mask = (in.getMat() != 0);
+  cv::Mat mask2;
+  cv::threshold(mask, mask2, 0.5, 255, cv::THRESH_BINARY);
+  return mask2;
+}
+}
+
 namespace skinseg {
 __global__ void gpu_ProjectThermalOnRgb(
     uint16_t* depth_img, uint16_t* thermal, float* z_buffer, int rgbd_rows,
     int rgbd_cols, int thermal_rows, int thermal_cols, CameraData camera_data,
-    Eigen::Affine3d* rgb_in_thermal, double max_depth, uint16_t* thermal_mat_out) {
+    Eigen::Affine3d* rgb_in_thermal, double max_depth,
+    uint16_t* thermal_mat_out) {
   double rgb_col = (blockIdx.x * blockDim.x + threadIdx.x);
   double rgb_row = (blockIdx.y * blockDim.y + threadIdx.y);
 
@@ -76,6 +96,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
                                      const Image::ConstPtr& depth,
                                      const Image::ConstPtr& thermal,
                                      cv::OutputArray thermal_projected) {
+  cv_bridge::CvImageConstPtr rgb_bridge = cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   cv_bridge::CvImageConstPtr thermal_bridge = cv_bridge::toCvShare(thermal);
   // if (debug_) {
@@ -86,8 +107,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
 
   // Registration of the thermal image to the RGB image is done by projecting
   // the RGBD pixel into the thermal image and copying the pixel in the
-  // thermal
-  // image.
+  // thermal image.
   thermal_projected.create(rgb->height, rgb->width, CV_16UC1);
   cv::Mat thermal_projected_mat = thermal_projected.getMat();
   thermal_projected_mat = cv::Scalar(0);
@@ -172,7 +192,8 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   gpu_ProjectThermalOnRgb<<<numBlocks, threadsPerBlock>>>(
       d_depth, d_thermal, d_z_buffer, depth_bridge->image.rows,
       depth_bridge->image.cols, thermal_bridge->image.rows,
-      thermal_bridge->image.cols, camera_data, d_rgb_in_thermal, max_depth, d_thermal_mat);
+      thermal_bridge->image.cols, camera_data, d_rgb_in_thermal, max_depth,
+      d_thermal_mat);
   err = cudaMemcpy(thermal_projected_mat.data, d_thermal_mat, thermal_mat_size,
                    cudaMemcpyDeviceToHost);
   if (err != cudaSuccess) {
@@ -189,7 +210,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   // buffer and one to compute the projection after the z buffer has been
   // created. In practice it doesn't seem to make much of a difference.
 
-  // if (debug_) {
+   if (debug_) {
   //  rgb_projected = _rgb_projected;
   //  cv::namedWindow("RGB projected");
   //  cv::imshow("RGB projected", rgb_projected);
@@ -203,14 +224,14 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   //                cv::NORM_MINMAX);
   //  cv::imshow("Depth", ConvertToColor(normalized_depth));
 
-  //  cv::namedWindow("Projected labels");
-  //  cv::Mat projected_labels(thermal_projected_mat.rows,
-  //                           thermal_projected_mat.cols,
-  //                           thermal_projected_mat.type(), cv::Scalar(0));
-  //  cv::normalize(thermal_projected_mat, projected_labels, 0, 255,
-  //                cv::NORM_MINMAX, -1, NonZeroMask(thermal_projected_mat));
-  //  cv::Mat labels_color = ConvertToColor(projected_labels);
-  //  cv::imshow("Projected labels", labels_color);
+    cv::namedWindow("Projected thermal");
+    cv::Mat projected_labels(thermal_projected_mat.rows,
+                             thermal_projected_mat.cols,
+                             thermal_projected_mat.type(), cv::Scalar(0));
+    cv::normalize(thermal_projected_mat, projected_labels, 0, 255,
+                  cv::NORM_MINMAX, -1, NonZeroMask(thermal_projected_mat));
+    cv::Mat labels_color = ConvertToColor(projected_labels);
+    cv::imshow("Projected thermal", labels_color);
 
   //  cv::Mat normalized_thermal_image;
   //  cv::normalize(thermal_bridge->image, normalized_thermal_image, 0, 255,
@@ -220,13 +241,13 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   //  cv::namedWindow("Normalized thermal");
   //  cv::imshow("Normalized thermal", normalized_thermal_color);
 
-  //  double alpha;
-  //  ros::param::param("overlay_alpha", alpha, 0.5);
-  //  cv::Mat overlay;
-  //  cv::addWeighted(labels_color, alpha, rgb_bridge->image, 1 - alpha, 0.0,
-  //                  overlay);
-  //  cv::namedWindow("Overlay");
-  //  cv::imshow("Overlay", overlay);
+    double alpha;
+    ros::param::param("overlay_alpha", alpha, 0.5);
+    cv::Mat overlay;
+    cv::addWeighted(labels_color, alpha, rgb_bridge->image, 1 - alpha, 0.0,
+                    overlay);
+    cv::namedWindow("Thermal / RGB overlay");
+    cv::imshow("Thermal / RGB overlay", overlay);
 
   //  cv::Mat thermal_overlay;
   //  cv::addWeighted(normalized_thermal_color, alpha, rgb_projected, 1 -
@@ -234,6 +255,6 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   //                  0.0, thermal_overlay);
   //  cv::namedWindow("Thermal overlay");
   //  cv::imshow("Thermal overlay", thermal_overlay);
-  //}
+  }
 }
 }  // namespace skinseg

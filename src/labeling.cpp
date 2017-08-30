@@ -91,7 +91,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   }
 
   // Body pose tracking - skip first 3 seconds for user to get in initial pose
-  if (rgb->header.stamp < first_msg_time_ + ros::Duration(3)) {
+  if (rgb->header.stamp < first_msg_time_ + ros::Duration(1)) {
     return;
   }
 
@@ -122,10 +122,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv::Mat mask(rgb->height, rgb->width, CV_8UC1, cv::Scalar(0));
   ComputeHandMask(*depth, camera_data_, l_matrix, r_matrix, mask.data);
 
-  mask *= 255;
-  cv::namedWindow("Hand mask");
-  cv::imshow("Hand mask", mask);
-
   cv::Mat labels_mat;
   cv::threshold(thermal_fp, labels_mat, thermal_threshold, 1,
                 cv::THRESH_BINARY);
@@ -141,8 +137,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   cv::Mat overlay = rgb_bridge->image;
   overlay.setTo(cv::Scalar(0, 0, 255), labels != 0);
-  cv::namedWindow("Overlay");
-  cv::imshow("Overlay", overlay);
+  cv::namedWindow("Label overlay");
+  cv::imshow("Label overlay", overlay);
   cv_bridge::CvImage overlay_bridge(
       rgb->header, sensor_msgs::image_encodings::BGR8, overlay);
 
