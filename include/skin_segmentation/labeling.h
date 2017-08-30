@@ -32,6 +32,7 @@ class Labeling {
   ros::Publisher rgb_pub_;
   ros::Publisher depth_pub_;
   ros::Publisher depth_info_pub_;
+  ros::Publisher thermal_pub_;
 
   ros::Time first_msg_time_;
   CameraData camera_data_;
