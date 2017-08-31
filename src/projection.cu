@@ -96,7 +96,8 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
                                      const Image::ConstPtr& depth,
                                      const Image::ConstPtr& thermal,
                                      cv::OutputArray thermal_projected) {
-  cv_bridge::CvImageConstPtr rgb_bridge = cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
+  cv_bridge::CvImageConstPtr rgb_bridge =
+      cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   cv_bridge::CvImageConstPtr thermal_bridge = cv_bridge::toCvShare(thermal);
   // if (debug_) {
@@ -210,19 +211,19 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   // buffer and one to compute the projection after the z buffer has been
   // created. In practice it doesn't seem to make much of a difference.
 
-   if (debug_) {
-  //  rgb_projected = _rgb_projected;
-  //  cv::namedWindow("RGB projected");
-  //  cv::imshow("RGB projected", rgb_projected);
+  if (debug_) {
+    //  rgb_projected = _rgb_projected;
+    //  cv::namedWindow("RGB projected");
+    //  cv::imshow("RGB projected", rgb_projected);
 
-  //  cv::namedWindow("RGB");
-  //  cv::imshow("RGB", rgb_bridge->image);
+    //  cv::namedWindow("RGB");
+    //  cv::imshow("RGB", rgb_bridge->image);
 
-  //  cv::namedWindow("Depth");
-  //  cv::Mat normalized_depth;
-  //  cv::normalize(depth_bridge->image, normalized_depth, 0, 255,
-  //                cv::NORM_MINMAX);
-  //  cv::imshow("Depth", ConvertToColor(normalized_depth));
+    //  cv::namedWindow("Depth");
+    //  cv::Mat normalized_depth;
+    //  cv::normalize(depth_bridge->image, normalized_depth, 0, 255,
+    //                cv::NORM_MINMAX);
+    //  cv::imshow("Depth", ConvertToColor(normalized_depth));
 
     cv::namedWindow("Projected thermal");
     cv::Mat projected_labels(thermal_projected_mat.rows,
@@ -233,13 +234,13 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
     cv::Mat labels_color = ConvertToColor(projected_labels);
     cv::imshow("Projected thermal", labels_color);
 
-  //  cv::Mat normalized_thermal_image;
-  //  cv::normalize(thermal_bridge->image, normalized_thermal_image, 0, 255,
-  //                cv::NORM_MINMAX);
-  //  cv::Mat normalized_thermal_color =
-  //  ConvertToColor(normalized_thermal_image);
-  //  cv::namedWindow("Normalized thermal");
-  //  cv::imshow("Normalized thermal", normalized_thermal_color);
+    //  cv::Mat normalized_thermal_image;
+    //  cv::normalize(thermal_bridge->image, normalized_thermal_image, 0, 255,
+    //                cv::NORM_MINMAX);
+    //  cv::Mat normalized_thermal_color =
+    //  ConvertToColor(normalized_thermal_image);
+    //  cv::namedWindow("Normalized thermal");
+    //  cv::imshow("Normalized thermal", normalized_thermal_color);
 
     double alpha;
     ros::param::param("overlay_alpha", alpha, 0.5);
@@ -249,12 +250,12 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
     cv::namedWindow("Thermal / RGB overlay");
     cv::imshow("Thermal / RGB overlay", overlay);
 
-  //  cv::Mat thermal_overlay;
-  //  cv::addWeighted(normalized_thermal_color, alpha, rgb_projected, 1 -
-  //  alpha,
-  //                  0.0, thermal_overlay);
-  //  cv::namedWindow("Thermal overlay");
-  //  cv::imshow("Thermal overlay", thermal_overlay);
+    //  cv::Mat thermal_overlay;
+    //  cv::addWeighted(normalized_thermal_color, alpha, rgb_projected, 1 -
+    //  alpha,
+    //                  0.0, thermal_overlay);
+    //  cv::namedWindow("Thermal overlay");
+    //  cv::imshow("Thermal overlay", thermal_overlay);
   }
 }
 }  // namespace skinseg

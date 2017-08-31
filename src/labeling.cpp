@@ -91,8 +91,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     skeleton_pub_.publish(skeleton);
   }
 
-  // Body pose tracking - skip first 3 seconds for user to get in initial pose
-  if (rgb->header.stamp < first_msg_time_ + ros::Duration(1)) {
+  // Body pose tracking - skip first few seconds for user to get in initial pose
+  if (rgb->header.stamp < first_msg_time_ + ros::Duration(2)) {
     return;
   }
 
