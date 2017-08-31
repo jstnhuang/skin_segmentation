@@ -54,8 +54,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     return;
   }
 
-  ROS_INFO("Depth - thermal skew: %f",
-           (depth->header.stamp - thermal->header.stamp).toSec());
+  ROS_INFO("Thermal - depth skew: %f, RGB - depth skew: %f",
+           (thermal->header.stamp - depth->header.stamp).toSec(),
+           (rgb->header.stamp - depth->header.stamp).toSec());
   if (first_msg_time_.isZero()) {
     first_msg_time_ = rgb->header.stamp;
   }
