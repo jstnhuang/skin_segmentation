@@ -66,8 +66,7 @@ __global__ void gpu_CreatePointCloud(uint16_t* depth_img, int rows, int cols,
 __global__ void gpu_ProjectThermalOnRgb(
     float4* points, uint16_t* thermal, float* z_buffer, int rgbd_rows,
     int rgbd_cols, int thermal_rows, int thermal_cols, CameraData camera_data,
-    Eigen::Affine3d* rgb_in_thermal, uint16_t* thermal_mat_out,
-    float4* points_out) {
+    Eigen::Affine3d* rgb_in_thermal, uint16_t* thermal_mat_out) {
   int r_col = (blockIdx.x * blockDim.x + threadIdx.x);
   int r_row = (blockIdx.y * blockDim.y + threadIdx.y);
 
@@ -163,6 +162,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
                   ceil((float)rgbd_rows / threads_per_block.y));
   gpu_CreatePointCloud<<<num_blocks, threads_per_block>>>(
       d_depth, rgbd_rows, rgbd_cols, camera_data, d_points);
+  cudaFree(d_depth);
 
   // Do registration
   uint16_t* d_thermal;
@@ -192,8 +192,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   gpu_ProjectThermalOnRgb<<<num_blocks, threads_per_block>>>(
       d_points, d_thermal, d_z_buffer, depth_bridge->image.rows,
       depth_bridge->image.cols, thermal_bridge->image.rows,
-      thermal_bridge->image.cols, camera_data, d_rgb_in_thermal, d_thermal_mat,
-      points);
+      thermal_bridge->image.cols, camera_data, d_rgb_in_thermal, d_thermal_mat);
   HandleError(cudaMemcpy(thermal_projected_mat.data, d_thermal_mat,
                          thermal_mat_size, cudaMemcpyDeviceToHost));
 
@@ -201,8 +200,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
     cudaMemcpy(points, d_points, points_size, cudaMemcpyDeviceToHost);
   }
 
-  cudaFree(d_depth);
-  //cudaFree(d_points);
+  cudaFree(d_points);
   cudaFree(d_thermal);
   cudaFree(d_z_buffer);
   cudaFree(d_rgb_in_thermal);
