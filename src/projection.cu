@@ -183,7 +183,6 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   HandleError(cudaMemcpy(d_rgb_in_thermal, rgb_in_thermal_.data(),
                          rgb_in_thermal_size, cudaMemcpyHostToDevice));
 
-
   uint16_t* d_thermal_mat;
   int thermal_mat_size = rgbd_rows * rgbd_cols * sizeof(uint16_t);
   HandleError(cudaMalloc((void**)&d_thermal_mat, thermal_mat_size));
@@ -203,7 +202,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   }
 
   cudaFree(d_depth);
-  cudaFree(d_points);
+  //cudaFree(d_points);
   cudaFree(d_thermal);
   cudaFree(d_z_buffer);
   cudaFree(d_rgb_in_thermal);
