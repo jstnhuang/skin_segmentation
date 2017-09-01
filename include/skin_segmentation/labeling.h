@@ -1,6 +1,11 @@
 #ifndef _SKINSEG_LABELING_H_
 #define _SKINSEG_LABELING_H_
 
+#include <vector_types.h>
+
+#include "pcl/PointIndices.h"
+#include "pcl/point_cloud.h"
+#include "pcl/point_types.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "sensor_msgs/CameraInfo.h"
@@ -18,7 +23,6 @@ class Labeling {
   void Process(const sensor_msgs::Image::ConstPtr& rgb,
                const sensor_msgs::Image::ConstPtr& depth,
                const sensor_msgs::Image::ConstPtr& thermal);
-
   // If debug is true, then wait for a keypress between each image.
   void set_debug(bool debug);
 
@@ -33,16 +37,23 @@ class Labeling {
   ros::Publisher depth_pub_;
   ros::Publisher depth_info_pub_;
   ros::Publisher thermal_pub_;
+  ros::Publisher cloud_pub_;
 
   ros::Time first_msg_time_;
   CameraData camera_data_;
   sensor_msgs::CameraInfo rgbd_info_;
 };
 
-void ComputeHandMask(const sensor_msgs::Image& depth,
+void ComputeHandMask(float4* points, int height, int width,
                      const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask);
+
+void MaskToIndices(uint8_t* mask, int len,
+                   pcl::PointIndices::Ptr near_hand_indices);
+
+void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
+                   pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud);
 }  // namespace skinseg
 
 #endif  // _SKINSEG_LABELING_H_

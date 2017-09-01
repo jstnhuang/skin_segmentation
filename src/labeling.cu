@@ -25,9 +25,8 @@ struct CameraData {
 }
 
 namespace skinseg {
-__global__ void gpu_ComputeHandMask(const uint16_t* depth_data,
-                                    const int height, const int width,
-                                    CameraData camera_data,
+__global__ void gpu_ComputeHandMask(const float4* points, const int height,
+                                    const int width, CameraData camera_data,
                                     Eigen::Affine3f* world_in_left,
                                     Eigen::Affine3f* world_in_right,
                                     uint8_t* mask) {
@@ -38,30 +37,23 @@ __global__ void gpu_ComputeHandMask(const uint16_t* depth_data,
     return;
   }
 
-  uint16_t raw_depth = depth_data[row * width + col];
-  if (raw_depth == 0) {
+  int index = row * width + col;
+  float4 point = points[index];
+  if (point.w == 0) {
     return;
   }
-  float depth = raw_depth * 0.001f;
 
   Eigen::Vector3f xyz;
-  // clang-format off
-  xyz << ((col - camera_data.depth_cx) * depth - camera_data.depth_Tx) *
-           camera_data.inv_depth_fx,
-         ((row - camera_data.depth_cy) * depth - camera_data.depth_Ty) *
-           camera_data.inv_depth_fy,
-         depth;
-  // clang-format on
-
+  xyz << point.x, point.y, point.z;
   Eigen::Vector3f pos_in_l_frame = *world_in_left * xyz;
   Eigen::Vector3f pos_in_r_frame = *world_in_right * xyz;
 
   const float min_x = 0.075;
   const float max_x = 0.3;
-  const float min_y = -0.09;
-  const float max_y = 0.09;
-  const float min_z = -0.09;
-  const float max_z = 0.09;
+  const float min_y = -0.12;
+  const float max_y = 0.12;
+  const float min_z = -0.12;
+  const float max_z = 0.12;
   bool in_left_box =
       (pos_in_l_frame.x() > min_x && pos_in_l_frame.x() < max_x &&
        pos_in_l_frame.y() > min_y && pos_in_l_frame.y() < max_y &&
@@ -70,21 +62,18 @@ __global__ void gpu_ComputeHandMask(const uint16_t* depth_data,
       (pos_in_r_frame.x() > min_x && pos_in_r_frame.x() < max_x &&
        pos_in_r_frame.y() > min_y && pos_in_r_frame.y() < max_y &&
        pos_in_r_frame.z() > min_z && pos_in_r_frame.z() < max_z);
-  mask[row * width + col] = in_left_box || in_right_box;
+  mask[index] = in_left_box || in_right_box;
 }
 
-void ComputeHandMask(const sensor_msgs::Image& depth,
+void ComputeHandMask(float4* points, int height, int width,
                      const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask) {
-  int height = depth.height;
-  int width = depth.width;
-
-  uint16_t* d_depth;
-  int depth_size = width * height * sizeof(uint16_t);
-  HandleError(cudaMalloc((void**)&d_depth, depth_size));
-  HandleError(cudaMemcpy(d_depth, depth.data.data(), depth_size,
-                         cudaMemcpyHostToDevice));
+  float4* d_points;
+  int points_size = width * height * sizeof(float4);
+  HandleError(cudaMalloc((void**)&d_points, points_size));
+  HandleError(
+      cudaMemcpy(d_points, points, points_size, cudaMemcpyHostToDevice));
 
   Eigen::Affine3f world_in_left = l_forearm_pose.inverse();
   Eigen::Affine3f* d_l_forearm_pose;
@@ -108,11 +97,10 @@ void ComputeHandMask(const sensor_msgs::Image& depth,
   dim3 numBlocks(ceil((float)width / threadsPerBlock.x),
                  ceil((float)height / threadsPerBlock.y));
   gpu_ComputeHandMask<<<numBlocks, threadsPerBlock>>>(
-      d_depth, height, width, camera_data, d_l_forearm_pose, d_r_forearm_pose,
+      d_points, height, width, camera_data, d_l_forearm_pose, d_r_forearm_pose,
       d_mask);
 
   HandleError(cudaMemcpy(mask, d_mask, mask_size, cudaMemcpyDeviceToHost));
-  HandleError(cudaFree(d_depth));
   HandleError(cudaFree(d_l_forearm_pose));
   HandleError(cudaFree(d_r_forearm_pose));
   HandleError(cudaFree(d_mask));
