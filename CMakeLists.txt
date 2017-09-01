@@ -27,6 +27,7 @@ find_package(catkin REQUIRED COMPONENTS
 find_package(Boost REQUIRED)
 find_package(CUDA REQUIRED)
 find_package(OpenCV 3 REQUIRED)
+find_package(PCL REQUIRED)
 find_package(PkgConfig)
 pkg_check_modules(eigen3 REQUIRED eigen3)
 
@@ -154,6 +155,7 @@ include_directories(
   ${CUDA_INCLUDE_DIRS}
   ${CUDA_TOOLKIT_ROOT_DIR}/samples/common/inc
   ${OpenCV_INCLUDE_DIRS}
+  ${PCL_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library
@@ -171,6 +173,7 @@ target_link_libraries(skin_segmentation_labeling
   skin_segmentation_nerf
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
+  ${PCL_LIBRARIES}
 )
 
 add_library(skin_segmentation_load_configs src/load_configs.cpp)
