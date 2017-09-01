@@ -54,6 +54,13 @@ void MaskToIndices(uint8_t* mask, int len,
 
 void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud);
+
+void LabelWithThermal(cv::Mat thermal_projected, cv::Mat near_hand_mask,
+                      int rows, int cols, float thermal_threshold,
+                      cv::OutputArray labels);
+// void LabelWithRegionGrowingRGB(cv::Mat thermal, cv::Mat near_hand_mask,
+//                               int rows, int cols, float thermal_threshold,
+//                               cv::OutputArray labels);
 }  // namespace skinseg
 
 #endif  // _SKINSEG_LABELING_H_

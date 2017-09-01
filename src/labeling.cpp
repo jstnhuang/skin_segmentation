@@ -137,6 +137,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   pcl::PointIndices::Ptr indices(new pcl::PointIndices());
   ComputeHandMask(points, rgb->height, rgb->width, camera_data_, l_matrix,
                   r_matrix, mask.data);
+
+  // Segmentation of the hands
   pcl::PointIndices::Ptr near_hand_indices(new pcl::PointIndices());
   MaskToIndices(mask.data, rgb->height * rgb->width, near_hand_indices);
 
@@ -159,64 +161,60 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   int min_size;
   ros::param::param("label_data_rgbseg_min_size", min_size, 15);
 
-  pcl::search::KdTree<PointC>::Ptr tree(new pcl::search::KdTree<PointC>());
-  pcl::RegionGrowingRGB<PointC> reg;
-  reg.setInputCloud(point_cloud);
-  reg.setIndices(near_hand_indices);
-  reg.setSearchMethod(tree);
-  reg.setDistanceThreshold(pt_distance);
-  reg.setPointColorThreshold(color_threshold);
-  reg.setPointColorThreshold(region_color_threshold);
-  reg.setPointColorThreshold(min_size);
-  std::vector<pcl::PointIndices> clusters;
-  reg.extract(clusters);
+  // pcl::search::KdTree<PointC>::Ptr tree(new pcl::search::KdTree<PointC>());
+  // pcl::RegionGrowingRGB<PointC> reg;
+  // reg.setInputCloud(point_cloud);
+  // reg.setIndices(near_hand_indices);
+  // reg.setSearchMethod(tree);
+  // reg.setDistanceThreshold(pt_distance);
+  // reg.setPointColorThreshold(color_threshold);
+  // reg.setPointColorThreshold(region_color_threshold);
+  // reg.setPointColorThreshold(min_size);
+  // std::vector<pcl::PointIndices> clusters;
+  // reg.extract(clusters);
 
-  if (debug_) {
-    ROS_INFO("Found %ld clusters", clusters.size());
-    sensor_msgs::PointCloud2 debug_pc;
-    PointCloudC::Ptr colored = reg.getColoredCloud();
-    pcl::ExtractIndices<PointC> extract;
-    extract.setInputCloud(colored);
-    extract.setIndices(near_hand_indices);
-    PointCloudC::Ptr output(new PointCloudC());
-    extract.filter(*output);
-    pcl::toROSMsg(*output, debug_pc);
-    debug_pc.header.frame_id = rgb->header.frame_id;
-    cloud_pub_.publish(debug_pc);
-  }
+  // if (debug_) {
+  //  ROS_INFO("Found %ld clusters", clusters.size());
+  //  sensor_msgs::PointCloud2 debug_pc;
+  //  PointCloudC::Ptr colored = reg.getColoredCloud();
+  //  pcl::ExtractIndices<PointC> extract;
+  //  extract.setInputCloud(colored);
+  //  extract.setIndices(near_hand_indices);
+  //  PointCloudC::Ptr output(new PointCloudC());
+  //  extract.filter(*output);
+  //  pcl::toROSMsg(*output, debug_pc);
+  //  debug_pc.header.frame_id = rgb->header.frame_id;
+  //  cloud_pub_.publish(debug_pc);
+  //}
 
-  cv::Mat labels(rgb->height, rgb->width, CV_8UC1, cv::Scalar(0));
-  float cluster_heat_threshold;
-  ros::param::param("label_data_heat_percentage", cluster_heat_threshold,
-                    50.0f);
-  for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
-    const pcl::PointIndices& cluster = clusters[cluster_i];
-    float num_hot = 0;
-    size_t cluster_size = cluster.indices.size();
-    for (size_t index = 0; index < cluster_size; ++index) {
-      int pt_index = cluster.indices[index];
-      uint16_t thermal_val =
-          reinterpret_cast<uint16_t*>(thermal_projected.data)[pt_index];
-      if (thermal_val > thermal_threshold) {
-        num_hot += 1;
-      }
-    }
-    float percent_hot = num_hot / cluster_size;
-    if (percent_hot > cluster_heat_threshold) {
-      for (size_t index = 0; index < cluster_size; ++index) {
-        int pt_index = cluster.indices[index];
-        labels.data[pt_index] = 255;
-      }
-    }
-  }
+  // float cluster_heat_threshold;
+  // ros::param::param("label_data_heat_percentage", cluster_heat_threshold,
+  //                  50.0f);
+  // for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
+  //  const pcl::PointIndices& cluster = clusters[cluster_i];
+  //  float num_hot = 0;
+  //  size_t cluster_size = cluster.indices.size();
+  //  for (size_t index = 0; index < cluster_size; ++index) {
+  //    int pt_index = cluster.indices[index];
+  //    uint16_t thermal_val =
+  //        reinterpret_cast<uint16_t*>(thermal_projected.data)[pt_index];
+  //    if (thermal_val > thermal_threshold) {
+  //      num_hot += 1;
+  //    }
+  //  }
+  //  float percent_hot = num_hot / cluster_size;
+  //  if (percent_hot > cluster_heat_threshold) {
+  //    for (size_t index = 0; index < cluster_size; ++index) {
+  //      int pt_index = cluster.indices[index];
+  //      labels.data[pt_index] = 255;
+  //    }
+  //  }
+  //}
 
   // Labeling
-  // cv::Mat thermal_fp;
-  // thermal_projected.convertTo(thermal_fp, CV_32F);
-
-  // cv::threshold(thermal_fp, labels_mat, thermal_threshold, 1,
-  //              cv::THRESH_BINARY);
-
+  cv::Mat labels;
+  LabelWithThermal(thermal_projected, mask, rgb->height, rgb->width,
+                   thermal_threshold, labels);
   if (debug_) {
     cv::namedWindow("Labels");
     cv::imshow("Labels", labels);
@@ -379,5 +377,21 @@ void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
     }
   }
   point_cloud->header.frame_id = rgb.header.frame_id;
+}
+
+void LabelWithThermal(cv::Mat thermal_projected, cv::Mat near_hand_mask,
+                      int rows, int cols, float thermal_threshold,
+                      cv::OutputArray labels) {
+  cv::Mat thermal_fp;
+  thermal_projected.convertTo(thermal_fp, CV_32F);
+
+  cv::Mat hot_pixels;
+  cv::threshold(thermal_fp, hot_pixels, thermal_threshold, 1,
+                cv::THRESH_BINARY);
+
+  labels.create(rows, cols, CV_32F);
+  cv::Mat labels_mat = labels.getMat();
+  labels_mat = cv::Scalar(0);
+  hot_pixels.copyTo(labels_mat, near_hand_mask);
 }
 }  // namespace skinseg
