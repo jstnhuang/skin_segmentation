@@ -102,6 +102,11 @@ int main(int argc, char** argv) {
   int max_images;  // Max number of images to process, 0 for all.
   ros::param::param("label_data_max_images", max_images, 0);
 
+  std::string labeling_algorithm("");
+  ros::param::param("labeling_algorithm", labeling_algorithm,
+                    std::string(skinseg::kThermal));
+  labeling.set_labeling_algorithm(labeling_algorithm);
+
   int num_msgs = view.size();
   int i = 0;
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {

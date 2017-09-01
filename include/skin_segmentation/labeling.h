@@ -15,6 +15,9 @@
 #include "skin_segmentation/projection.h"
 
 namespace skinseg {
+static const char kThermal[] = "thermal";
+static const char kGrabCut[] = "grabcut";
+
 class Labeling {
  public:
   // Takes in an open bag to write to.
@@ -25,8 +28,18 @@ class Labeling {
                const sensor_msgs::Image::ConstPtr& thermal);
   // If debug is true, then wait for a keypress between each image.
   void set_debug(bool debug);
+  void set_labeling_algorithm(const std::string& alg);
 
  private:
+  void LabelWithThermal(cv::Mat thermal_projected, cv::Mat near_hand_mask,
+                        int rows, int cols, float thermal_threshold,
+                        cv::OutputArray labels);
+  void LabelWithRegionGrowingRGB(float4* points, sensor_msgs::ImageConstPtr rgb,
+                                 cv::Mat thermal, cv::Mat near_hand_mask,
+                                 int rows, int cols, float thermal_threshold,
+                                 cv::OutputArray labels);
+  void LabelWithGrabCut(int rows, int cols, cv::OutputArray labels);
+
   Projection projection_;
   Nerf* nerf_;
   rosbag::Bag* output_bag_;
@@ -38,6 +51,7 @@ class Labeling {
   ros::Publisher depth_info_pub_;
   ros::Publisher thermal_pub_;
   ros::Publisher cloud_pub_;
+  std::string labeling_algorithm_;
 
   ros::Time first_msg_time_;
   CameraData camera_data_;
@@ -55,12 +69,6 @@ void MaskToIndices(uint8_t* mask, int len,
 void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud);
 
-void LabelWithThermal(cv::Mat thermal_projected, cv::Mat near_hand_mask,
-                      int rows, int cols, float thermal_threshold,
-                      cv::OutputArray labels);
-// void LabelWithRegionGrowingRGB(cv::Mat thermal, cv::Mat near_hand_mask,
-//                               int rows, int cols, float thermal_threshold,
-//                               cv::OutputArray labels);
 }  // namespace skinseg
 
 #endif  // _SKINSEG_LABELING_H_
