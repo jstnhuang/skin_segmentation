@@ -1,6 +1,7 @@
 #ifndef _SKINSEG_PROJECTION_H_
 #define _SKINSEG_PROJECTION_H_
 
+#include <vector_types.h>
 #include <list>
 #include <map>
 
@@ -33,16 +34,32 @@ struct CameraData {
 void GetCameraData(const sensor_msgs::CameraInfo& camera_info,
                    CameraData* camera_data);
 
+// This class provides the functionality to map between the RGB, depth, and
+// thermal images. It expects the following image encodings:
+// - RGB: RGB8
+// - Depth: 16UC1, values indicate mm.
+// - Thermal: 16UC1, raw image values from camera driver.
+//
+// It also assumes that we are getting registered depth data. That is, the depth
+// values are in the frame of the RGB camera, and rgb[i] corresponds to depth[i]
+// for each pixel i. Invalid depth values should be set to 0.
 class Projection {
  public:
   Projection(const sensor_msgs::CameraInfo& rgbd_info,
              const sensor_msgs::CameraInfo& thermal_info,
              const Eigen::Affine3d& rgb_in_thermal);
 
+  // Registers the thermal image with the RGB/depth images. That is, for each
+  // pixel i in the RGB image, the corresponding depth and thermal values are
+  // depth[i] and thermal_projected[i]. Calling this produces the point cloud as
+  // a byproduct. If you want to get the point cloud, allocate a
+  // float4[depth_rows * depth_cols] array and pass it in as "points". The XYZ
+  // for each point will be stored in the same row-major order as with "rgb",
+  // etc. The w value is 1 for valid points, 0 otherwise.
   void ProjectThermalOnRgb(const sensor_msgs::Image::ConstPtr& rgb,
                            const sensor_msgs::Image::ConstPtr& depth,
                            const sensor_msgs::Image::ConstPtr& thermal,
-                           cv::OutputArray thermal_projected);
+                           cv::OutputArray thermal_projected, float4* points);
 
   void set_debug(bool debug);
 

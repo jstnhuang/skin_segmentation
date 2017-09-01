@@ -34,16 +34,6 @@ int main(int argc, char** argv) {
   sensor_msgs::CameraInfo thermal_camera_info;
   skinseg::GetCameraInfos(&rgbd_camera_info, &thermal_camera_info);
 
-  // rgbd_camera_info.K[0] = 565.829036;
-  // rgbd_camera_info.K[4] = 564.944907;
-  // rgbd_camera_info.P[0] = 567.424805;
-  // rgbd_camera_info.P[5] = 572.887207;
-
-  // thermal_camera_info.K[0] = 739.7781870603687;
-  // thermal_camera_info.K[4] = 739.8801010453104;
-  // thermal_camera_info.P[0] = 739.7781870603687;
-  // thermal_camera_info.P[5] = 739.8801010453104;
-
   Eigen::Vector3d translation;
   ros::param::param<double>("thermal_x", translation.x(), 0.00021494608);
   ros::param::param<double>("thermal_y", translation.y(), -0.035);
@@ -59,19 +49,20 @@ int main(int argc, char** argv) {
 
   skinseg::Projection projection(rgbd_camera_info, thermal_camera_info,
                                  rgb_in_thermal);
-  cv::namedWindow("RGB");
-  cv::namedWindow("Depth");
-  cv::namedWindow("Normalized thermal");
-  cv::setMouseCallback("RGB", &skinseg::Projection::RgbdMouseCallback,
-                       &projection);
-  cv::setMouseCallback("Depth", &skinseg::Projection::RgbdMouseCallback,
-                       &projection);
-  cv::setMouseCallback("Normalized thermal",
-                       &skinseg::Projection::ThermalMouseCallback, &projection);
+  // cv::namedWindow("RGB");
+  // cv::namedWindow("Depth");
+  // cv::namedWindow("Normalized thermal");
+  // cv::setMouseCallback("RGB", &skinseg::Projection::RgbdMouseCallback,
+  //                     &projection);
+  // cv::setMouseCallback("Depth", &skinseg::Projection::RgbdMouseCallback,
+  //                     &projection);
+  // cv::setMouseCallback("Normalized thermal",
+  //                     &skinseg::Projection::ThermalMouseCallback,
+  //                     &projection);
   projection.set_debug(true);
   cv::Mat projected_thermal;
   projection.ProjectThermalOnRgb(data.color, data.depth, data.thermal,
-                                 projected_thermal);
+                                 projected_thermal, NULL);
 
   cv::waitKey();
 
