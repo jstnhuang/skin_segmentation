@@ -63,6 +63,58 @@ __global__ void gpu_CreatePointCloud(uint16_t* depth_img, int rows, int cols,
   }
 }
 
+__global__ void gpu_ComputeZBuffer(uint16_t* depth_img,
+                                   float* z_buffer, int rgbd_rows,
+                                   int rgbd_cols, int thermal_rows,
+                                   int thermal_cols, CameraData camera_data,
+                                   Eigen::Affine3d* rgb_in_thermal) {
+  double r_col = (blockIdx.x * blockDim.x + threadIdx.x) / 2.0;
+  double r_row = (blockIdx.y * blockDim.y + threadIdx.y) / 2.0;
+  int r_row_i = round(r_row);
+  int r_col_i = round(r_col);
+
+  if (r_row_i >= rgbd_rows || r_col_i >= rgbd_cols) {
+    return;
+  }
+  int index = r_row_i * rgbd_cols + r_col_i;
+
+  uint16_t raw_depth = depth_img[index];
+  if (raw_depth == 0) {
+    return;
+  }
+  float depth = raw_depth * 0.001f;
+  double x = ((r_col - camera_data.depth_cx) * depth - camera_data.depth_Tx) *
+             camera_data.inv_depth_fx;
+  double y = ((r_row - camera_data.depth_cy) * depth - camera_data.depth_Ty) *
+             camera_data.inv_depth_fy;
+  float z = depth;
+
+  Eigen::Vector3d xyz_rgb;
+  xyz_rgb << x, y, z;
+  Eigen::Vector3d xyz_in_thermal = *rgb_in_thermal * xyz_rgb;
+
+  double inv_Z = 1.0 / xyz_in_thermal.z();
+  double fx = camera_data.thermal_fx;
+  double fy = camera_data.thermal_fy;
+  double Tx = camera_data.thermal_Tx;
+  double Ty = camera_data.thermal_Ty;
+  double tcx = camera_data.thermal_cx;
+  double tcy = camera_data.thermal_cy;
+  int t_col = round((fx * xyz_in_thermal.x() + Tx) * inv_Z + tcx);
+  int t_row = round((fy * xyz_in_thermal.y() + Ty) * inv_Z + tcy);
+
+  if (t_col < 0 || t_col >= thermal_cols || t_row < 0 ||
+      t_row >= thermal_rows) {
+    return;
+  }
+
+  float& prev_depth = z_buffer[thermal_cols * t_row + t_col];
+  bool depth_check_passed = prev_depth == 0 || depth < prev_depth;
+  if (depth_check_passed) {
+    prev_depth = depth;
+  }
+}
+
 __global__ void gpu_ProjectThermalOnRgb(
     float4* points, uint16_t* thermal, float* z_buffer, int rgbd_rows,
     int rgbd_cols, int thermal_rows, int thermal_cols, CameraData camera_data,
@@ -85,14 +137,14 @@ __global__ void gpu_ProjectThermalOnRgb(
   Eigen::Vector3d xyz_in_thermal = *rgb_in_thermal * xyz_rgb;
 
   double inv_Z = 1.0 / xyz_in_thermal.z();
-  int t_col =
-      (camera_data.thermal_fx * xyz_in_thermal.x() + camera_data.thermal_Tx) *
-          inv_Z +
-      camera_data.thermal_cx + 0.5;
-  int t_row =
-      (camera_data.thermal_fy * xyz_in_thermal.y() + camera_data.thermal_Ty) *
-          inv_Z +
-      camera_data.thermal_cy + 0.5;
+  double fx = camera_data.thermal_fx;
+  double fy = camera_data.thermal_fy;
+  double Tx = camera_data.thermal_Tx;
+  double Ty = camera_data.thermal_Ty;
+  double tcx = camera_data.thermal_cx;
+  double tcy = camera_data.thermal_cy;
+  int t_col = round((fx * xyz_in_thermal.x() + Tx) * inv_Z + tcx);
+  int t_row = round((fy * xyz_in_thermal.y() + Ty) * inv_Z + tcy);
 
   if (t_col < 0 || t_col >= thermal_cols || t_row < 0 ||
       t_row >= thermal_rows) {
@@ -100,10 +152,13 @@ __global__ void gpu_ProjectThermalOnRgb(
   }
 
   float depth = point.z;
-  float& prev_depth = z_buffer[thermal_cols * t_row + t_col];
-  bool depth_check_passed = prev_depth == 0 || depth < prev_depth;
+  float prev_depth = z_buffer[thermal_cols * t_row + t_col];
+  // Z value may differ from Z buffer because the Z buffer is built by examining
+  // each half-pixel in the RGBD image. In this function, the Z values come from
+  // examining each pixel. If a nearby half-pixel value is closer, we don't want
+  // to reject this pixel. We just want to reject egregious errors.
+  bool depth_check_passed = prev_depth == 0 || depth <= prev_depth + 0.02;
   if (depth_check_passed) {
-    prev_depth = depth;
     thermal_mat_out[rgbd_cols * r_row + r_col] =
         thermal[thermal_cols * t_row + t_col];
   }
@@ -160,9 +215,10 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   dim3 threads_per_block(8, 8);
   dim3 num_blocks(ceil((float)rgbd_cols / threads_per_block.x),
                   ceil((float)rgbd_rows / threads_per_block.y));
+  dim3 twice_num_blocks(2 * ceil((float)rgbd_cols / threads_per_block.x),
+                        2 * ceil((float)rgbd_rows / threads_per_block.y));
   gpu_CreatePointCloud<<<num_blocks, threads_per_block>>>(
       d_depth, rgbd_rows, rgbd_cols, camera_data, d_points);
-  cudaFree(d_depth);
 
   // Do registration
   uint16_t* d_thermal;
@@ -189,10 +245,17 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   HandleError(cudaMemcpy(d_thermal_mat, thermal_projected_mat.data,
                          thermal_mat_size, cudaMemcpyHostToDevice));
 
+  gpu_ComputeZBuffer<<<twice_num_blocks, threads_per_block>>>(
+      d_depth, d_z_buffer, depth_bridge->image.rows,
+      depth_bridge->image.cols, thermal_bridge->image.rows,
+      thermal_bridge->image.cols, camera_data, d_rgb_in_thermal);
+  cudaFree(d_depth);
+
   gpu_ProjectThermalOnRgb<<<num_blocks, threads_per_block>>>(
       d_points, d_thermal, d_z_buffer, depth_bridge->image.rows,
       depth_bridge->image.cols, thermal_bridge->image.rows,
       thermal_bridge->image.cols, camera_data, d_rgb_in_thermal, d_thermal_mat);
+
   HandleError(cudaMemcpy(thermal_projected_mat.data, d_thermal_mat,
                          thermal_mat_size, cudaMemcpyDeviceToHost));
 
@@ -205,10 +268,6 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
   cudaFree(d_z_buffer);
   cudaFree(d_rgb_in_thermal);
   cudaFree(d_thermal_mat);
-
-  // It is technically more accurate to do two passes, one to create the z
-  // buffer and one to compute the projection after the z buffer has been
-  // created. In practice it doesn't seem to make much of a difference.
 
   if (debug_) {
     cv::namedWindow("Projected thermal");
