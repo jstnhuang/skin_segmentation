@@ -136,6 +136,32 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   ComputeHandMask(points, rgb_rows, rgb_cols, camera_data_, l_matrix, r_matrix,
                   near_hand_mask.data);
 
+  cv_bridge::CvImageConstPtr rgb_bridge =
+      cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
+  cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
+  if (debug_) {
+    cv::namedWindow("RGB hands");
+    cv::Mat rgb_hands;
+    rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
+    cv::imshow("RGB hands", rgb_hands);
+
+    cv::namedWindow("Depth hands");
+    cv::Mat depth_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
+    depth_bridge->image.copyTo(depth_hands, near_hand_mask);
+    cv::Mat depth_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.1));
+    cv::normalize(depth_hands, depth_normalized, 0, 1, cv::NORM_MINMAX, CV_32F,
+                  depth_hands != 0);
+    cv::imshow("Depth hands", depth_normalized);
+
+    cv::namedWindow("Thermal hands");
+    cv::Mat thermal_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
+    thermal_projected.copyTo(thermal_hands, near_hand_mask);
+    cv::Mat thermal_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.1));
+    cv::normalize(thermal_hands, thermal_normalized, 0, 1, cv::NORM_MINMAX,
+                  CV_32F, thermal_hands != 0);
+    cv::imshow("Thermal hands", thermal_normalized);
+  }
+
   // Labeling
   cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   if (labeling_algorithm_ == kThermal) {
@@ -190,8 +216,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   delete[] points;
 
   // Visualization
-  cv_bridge::CvImageConstPtr rgb_bridge =
-      cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImage labels_bridge(
       rgb->header, sensor_msgs::image_encodings::TYPE_8UC1, labels);
 
