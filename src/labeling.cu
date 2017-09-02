@@ -104,5 +104,6 @@ void ComputeHandMask(float4* points, int height, int width,
   HandleError(cudaFree(d_l_forearm_pose));
   HandleError(cudaFree(d_r_forearm_pose));
   HandleError(cudaFree(d_mask));
+  HandleError(cudaFree(d_points));
 }
 }  // namespace skinseg
