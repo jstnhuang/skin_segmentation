@@ -52,8 +52,8 @@ __global__ void gpu_ComputeHandMask(const float4* points, const int height,
   const float max_x = 0.3;
   const float min_y = -0.12;
   const float max_y = 0.12;
-  const float min_z = -0.12;
-  const float max_z = 0.12;
+  const float min_z = -0.06;
+  const float max_z = 0.06;
   bool in_left_box =
       (pos_in_l_frame.x() > min_x && pos_in_l_frame.x() < max_x &&
        pos_in_l_frame.y() > min_y && pos_in_l_frame.y() < max_y &&
