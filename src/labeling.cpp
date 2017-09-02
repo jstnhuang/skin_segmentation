@@ -78,9 +78,11 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   double thermal_threshold;
   ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
+  const int rgb_rows = rgb->height;
+  const int rgb_cols = rgb->width;
 
   cv::Mat thermal_projected;
-  float4* points = new float4[rgb->width * rgb->height];
+  float4* points = new float4[rgb_cols * rgb_rows];
   projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected,
                                   points);
 
@@ -103,11 +105,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     rgbd_info_.header.stamp = now;
     depth_info_pub_.publish(rgbd_info_);
     skeleton_pub_.publish(skeleton);
-  }
-
-  // Body pose tracking - skip first few seconds for user to get in initial pose
-  if (rgb->header.stamp < first_msg_time_ + ros::Duration(2)) {
-    return;
   }
 
   nerf_->observation->Callback(rgb, depth);
@@ -134,22 +131,61 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_matrix.translation() *= model_scale;
   r_matrix.translation() *= model_scale;
 
-  cv::Mat mask(rgb->height, rgb->width, CV_8UC1, cv::Scalar(0));
+  cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   pcl::PointIndices::Ptr indices(new pcl::PointIndices());
-  ComputeHandMask(points, rgb->height, rgb->width, camera_data_, l_matrix,
-                  r_matrix, mask.data);
+  ComputeHandMask(points, rgb_rows, rgb_cols, camera_data_, l_matrix, r_matrix,
+                  near_hand_mask.data);
 
   // Labeling
-  cv::Mat labels;
+  cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   if (labeling_algorithm_ == kThermal) {
-    LabelWithThermal(thermal_projected, mask, rgb->height, rgb->width,
+    LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
                      thermal_threshold, labels);
   } else if (labeling_algorithm_ == kGrabCut) {
-    LabelWithGrabCut(rgb->height, rgb->width, labels);
+    cv_bridge::CvImageConstPtr rgb_bridge =
+        cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
+    cv::Mat rgb_hands(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(0, 0, 0));
+    rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
+    cv::namedWindow("RGB");
+    cv::imshow("RGB", rgb_bridge->image);
+
+    cv::Mat thermal_labels;
+    LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
+                     thermal_threshold, thermal_labels);
+
+    // cv::Mat prob_mask = (thermal_labels * cv::GC_PR_FGD);
+    cv::Mat prob_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(cv::GC_BGD));
+    prob_mask.setTo(cv::Scalar(cv::GC_PR_BGD), near_hand_mask);
+    prob_mask.setTo(cv::Scalar(cv::GC_PR_FGD), thermal_labels);
+    cv::Mat eroded_thermal_labels;
+    cv::erode(thermal_labels, eroded_thermal_labels, cv::MORPH_RECT);
+    prob_mask.setTo(cv::Scalar(cv::GC_FGD), eroded_thermal_labels);
+
+    cv::Mat prob_normalized;
+    cv::normalize(prob_mask, prob_normalized, 0, 255, cv::NORM_MINMAX);
+    cv::namedWindow("Prob mask in");
+    cv::imshow("Prob mask in", prob_normalized);
+
+    cv::Rect roi_unused;
+    cv::Mat back_model;
+    cv::Mat fore_model;
+    grabCut(rgb_bridge->image, prob_mask, roi_unused, back_model, fore_model, 5,
+            cv::GC_INIT_WITH_MASK);
+
+    cv::normalize(prob_mask, prob_normalized, 0, 255, cv::NORM_MINMAX);
+    cv::namedWindow("GrabCut");
+    cv::imshow("GrabCut", prob_normalized);
+
+    cv::Mat gc_labels = prob_mask & 1;
+    gc_labels.copyTo(labels, near_hand_mask);
+
+    // prob_mask.copyTo(labels, near_hand_mask);
+
+    // LabelWithGrabCut(rgb->height, rgb->width, labels);
   }
   if (debug_) {
     cv::namedWindow("Labels");
-    cv::imshow("Labels", labels);
+    cv::imshow("Labels", labels * 255);
   }
 
   delete[] points;
@@ -172,8 +208,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   const float max_x = 0.3;
   const float min_y = -0.12;
   const float max_y = 0.12;
-  const float min_z = -0.12;
-  const float max_z = 0.12;
+  const float min_z = -0.06;
+  const float max_z = 0.06;
 
   Eigen::Affine3f center(Eigen::Affine3f::Identity());
   center(0, 3) = (max_x + min_x) / 2;
@@ -325,11 +361,13 @@ void Labeling::LabelWithThermal(cv::Mat thermal_projected,
   cv::Mat hot_pixels;
   cv::threshold(thermal_fp, hot_pixels, thermal_threshold, 1,
                 cv::THRESH_BINARY);
+  cv::Mat hot_pixels_8;
+  hot_pixels.convertTo(hot_pixels_8, CV_8UC1);
 
-  labels.create(rows, cols, CV_32F);
+  labels.create(rows, cols, CV_8UC1);
   cv::Mat labels_mat = labels.getMat();
   labels_mat = cv::Scalar(0);
-  hot_pixels.copyTo(labels_mat, near_hand_mask);
+  hot_pixels_8.copyTo(labels_mat, near_hand_mask);
 }
 
 void Labeling::LabelWithGrabCut(int rows, int cols, cv::OutputArray labels) {
