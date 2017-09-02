@@ -109,9 +109,16 @@ int main(int argc, char** argv) {
 
   int num_msgs = view.size();
   int i = 0;
+
+  ros::Time start = view.getBeginTime() + ros::Duration(4);
+  ros::Time end = view.getEndTime() - ros::Duration(5);
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
     if (max_images > 0 && i >= max_images) {
       break;
+    }
+    const ros::Time& time = it->getTime();
+    if (time < start || time > end) {
+      continue;
     }
     if (it->getTopic() == skinseg::kRgbTopic) {
       rgb_cache.add(it->instantiate<Image>());
