@@ -6,7 +6,7 @@
     <arg name="publish_tf" value="false" />
   </include>
   <group ns="/ici/ir_camera">
-    <node pkg="image_proc" type="image_proc" name="thermal_image_proc" />
+    <node pkg="image_proc" type="image_proc" name="thermal_image_proc" required="true" />
   </group>
   <node pkg="nodelet" type="nodelet" name="thermal_nodelet_manager" args="manager" />
   <node pkg="nodelet" type="nodelet" name="thermal_registration_nodelet" args="load depth_image_proc/register thermal_nodelet_manager">
