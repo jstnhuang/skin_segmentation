@@ -153,7 +153,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
                      thermal_threshold, thermal_labels);
 
-    // cv::Mat prob_mask = (thermal_labels * cv::GC_PR_FGD);
     cv::Mat prob_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(cv::GC_BGD));
     prob_mask.setTo(cv::Scalar(cv::GC_PR_BGD), near_hand_mask);
     prob_mask.setTo(cv::Scalar(cv::GC_PR_FGD), thermal_labels);
@@ -183,10 +182,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
     // LabelWithGrabCut(rgb->height, rgb->width, labels);
   }
-  if (debug_) {
-    cv::namedWindow("Labels");
-    cv::imshow("Labels", labels * 255);
-  }
+  // if (debug_) {
+  //  cv::namedWindow("Labels");
+  //  cv::imshow("Labels", labels * 255);
+  //}
 
   delete[] points;
 
