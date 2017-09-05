@@ -17,6 +17,7 @@
 namespace skinseg {
 static const char kThermal[] = "thermal";
 static const char kGrabCut[] = "grabcut";
+static const char kColorHistogram[] = "colorhist";
 
 class Labeling {
  public:
@@ -38,7 +39,10 @@ class Labeling {
                                  cv::Mat thermal, cv::Mat near_hand_mask,
                                  int rows, int cols, float thermal_threshold,
                                  cv::OutputArray labels);
-  void LabelWithGrabCut(int rows, int cols, cv::OutputArray labels);
+  void LabelWithGrabCut(const sensor_msgs::ImageConstPtr& rgb, int rows,
+                        int cols, cv::Mat thermal_projected,
+                        cv::Mat near_hand_mask, float thermal_threshold,
+                        cv::OutputArray labels);
 
   Projection projection_;
   Nerf* nerf_;

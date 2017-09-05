@@ -168,45 +168,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
                      thermal_threshold, labels);
   } else if (labeling_algorithm_ == kGrabCut) {
-    cv_bridge::CvImageConstPtr rgb_bridge =
-        cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
-    cv::Mat rgb_hands(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(0, 0, 0));
-    rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
-    cv::namedWindow("RGB");
-    cv::imshow("RGB", rgb_bridge->image);
-
-    cv::Mat thermal_labels;
-    LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
-                     thermal_threshold, thermal_labels);
-
-    cv::Mat prob_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(cv::GC_BGD));
-    prob_mask.setTo(cv::Scalar(cv::GC_PR_BGD), near_hand_mask);
-    prob_mask.setTo(cv::Scalar(cv::GC_PR_FGD), thermal_labels);
-    cv::Mat eroded_thermal_labels;
-    cv::erode(thermal_labels, eroded_thermal_labels, cv::MORPH_RECT);
-    prob_mask.setTo(cv::Scalar(cv::GC_FGD), eroded_thermal_labels);
-
-    cv::Mat prob_normalized;
-    cv::normalize(prob_mask, prob_normalized, 0, 255, cv::NORM_MINMAX);
-    cv::namedWindow("Prob mask in");
-    cv::imshow("Prob mask in", prob_normalized);
-
-    cv::Rect roi_unused;
-    cv::Mat back_model;
-    cv::Mat fore_model;
-    grabCut(rgb_bridge->image, prob_mask, roi_unused, back_model, fore_model, 5,
-            cv::GC_INIT_WITH_MASK);
-
-    cv::normalize(prob_mask, prob_normalized, 0, 255, cv::NORM_MINMAX);
-    cv::namedWindow("GrabCut");
-    cv::imshow("GrabCut", prob_normalized);
-
-    cv::Mat gc_labels = prob_mask & 1;
-    gc_labels.copyTo(labels, near_hand_mask);
-
-    // prob_mask.copyTo(labels, near_hand_mask);
-
-    // LabelWithGrabCut(rgb->height, rgb->width, labels);
+    LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
+                     near_hand_mask, thermal_threshold, labels);
+  } else if (labeling_algorithm_ == kColorHistogram) {
   }
   // if (debug_) {
   //  cv::namedWindow("Labels");
@@ -393,10 +357,49 @@ void Labeling::LabelWithThermal(cv::Mat thermal_projected,
   hot_pixels_8.copyTo(labels_mat, near_hand_mask);
 }
 
-void Labeling::LabelWithGrabCut(int rows, int cols, cv::OutputArray labels) {
+void Labeling::LabelWithGrabCut(const sensor_msgs::ImageConstPtr& rgb, int rows,
+                                int cols, cv::Mat thermal_projected,
+                                cv::Mat near_hand_mask, float thermal_threshold,
+                                cv::OutputArray labels) {
   labels.create(rows, cols, CV_32F);
   cv::Mat labels_mat = labels.getMat();
   labels_mat = cv::Scalar(0);
+
+  cv_bridge::CvImageConstPtr rgb_bridge =
+      cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
+  cv::Mat rgb_hands(rows, cols, CV_8UC3, cv::Scalar(0, 0, 0));
+  rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
+  cv::namedWindow("RGB");
+  cv::imshow("RGB", rgb_bridge->image);
+
+  cv::Mat thermal_labels;
+  LabelWithThermal(thermal_projected, near_hand_mask, rows, cols,
+                   thermal_threshold, thermal_labels);
+
+  cv::Mat prob_mask(rows, cols, CV_8UC1, cv::Scalar(cv::GC_BGD));
+  prob_mask.setTo(cv::Scalar(cv::GC_PR_BGD), near_hand_mask);
+  prob_mask.setTo(cv::Scalar(cv::GC_PR_FGD), thermal_labels);
+  cv::Mat eroded_thermal_labels;
+  cv::erode(thermal_labels, eroded_thermal_labels, cv::MORPH_RECT);
+  prob_mask.setTo(cv::Scalar(cv::GC_FGD), eroded_thermal_labels);
+
+  cv::Mat prob_normalized;
+  cv::normalize(prob_mask, prob_normalized, 0, 255, cv::NORM_MINMAX);
+  cv::namedWindow("Prob mask in");
+  cv::imshow("Prob mask in", prob_normalized);
+
+  cv::Rect roi_unused;
+  cv::Mat back_model;
+  cv::Mat fore_model;
+  grabCut(rgb_bridge->image, prob_mask, roi_unused, back_model, fore_model, 5,
+          cv::GC_INIT_WITH_MASK);
+
+  cv::normalize(prob_mask, prob_normalized, 0, 255, cv::NORM_MINMAX);
+  cv::namedWindow("GrabCut");
+  cv::imshow("GrabCut", prob_normalized);
+
+  cv::Mat gc_labels = prob_mask & 1;
+  gc_labels.copyTo(labels_mat, near_hand_mask);
 }
 
 void Labeling::LabelWithRegionGrowingRGB(float4* points,
