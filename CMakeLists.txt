@@ -12,6 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   image_geometry
   message_filters
+  message_generation
   nerf_b
   rosbag
   roscpp
@@ -61,11 +62,10 @@ pkg_check_modules(eigen3 REQUIRED eigen3)
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
-#   Message1.msg
-#   Message2.msg
-# )
+add_message_files(
+  FILES
+  Images.msg
+)
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -82,10 +82,10 @@ pkg_check_modules(eigen3 REQUIRED eigen3)
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   std_msgs  # Or other packages containing msgs
-# )
+generate_messages(
+  DEPENDENCIES
+  sensor_msgs
+)
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -130,6 +130,7 @@ catkin_package(
     cv_bridge
     image_geometry
     message_filters
+    message_runtime
     sensor_msgs
     tf
     tf_conversions
