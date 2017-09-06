@@ -1,6 +1,7 @@
 #include "skin_segmentation/labeling.h"
 
 #include <cuda_runtime.h>
+#include <list>
 #include <vector>
 
 #include "cv_bridge/cv_bridge.h"
@@ -145,14 +146,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
     cv::imshow("RGB hands", rgb_hands);
 
-    cv::namedWindow("Depth hands");
-    cv::Mat depth_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
-    depth_bridge->image.copyTo(depth_hands, near_hand_mask);
-    cv::Mat depth_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.1));
-    cv::normalize(depth_hands, depth_normalized, 0, 1, cv::NORM_MINMAX, CV_32F,
-                  depth_hands != 0);
-    cv::imshow("Depth hands", depth_normalized);
-
     cv::namedWindow("Thermal hands");
     cv::Mat thermal_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
     thermal_projected.copyTo(thermal_hands, near_hand_mask);
@@ -171,7 +164,52 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
                      near_hand_mask, thermal_threshold, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
+    int num_bins;
+    ros::param::param("num_bins", num_bins, 2);
+    cv::Mat rgb_reduced;
+    ReduceRgb(rgb_bridge->image, near_hand_mask, num_bins, rgb_reduced);
+    std::vector<std::vector<cv::Point> > clusters;
+    FindConnectedComponents(rgb_reduced, near_hand_mask, &clusters);
+
+    cv::namedWindow("Reduced RGB");
+    cv::imshow("Reduced RGB", rgb_reduced);
+    ROS_INFO("Found %ld clusters", clusters.size());
+
+    // Number of hot pixels in each cluster.
+    int thermal_counts[clusters.size()];
+    for (size_t i = 0; i < clusters.size(); ++i) {
+      thermal_counts[i] = 0;
+    }
+
+    for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
+      const std::vector<cv::Point>& cluster = clusters[cluster_i];
+      for (size_t pt_i = 0; pt_i < cluster.size(); ++pt_i) {
+        const cv::Point& pt = cluster[pt_i];
+        int pixel_index = pt.y * rgb_cols + pt.x;
+        uint16_t thermal_val =
+            reinterpret_cast<uint16_t*>(thermal_projected.data)[pixel_index];
+        if (thermal_val > thermal_threshold) {
+          thermal_counts[cluster_i] += 1;
+        }
+      }
+    }
+
+    float percent_hot_threshold;
+    ros::param::param("percent_hot_threshold", percent_hot_threshold, 0.75f);
+    for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
+      const std::vector<cv::Point>& cluster = clusters[cluster_i];
+      float thermal_percent =
+          static_cast<float>(thermal_counts[cluster_i]) / cluster.size();
+      if (thermal_percent > percent_hot_threshold) {
+        for (size_t pt_i = 0; pt_i < cluster.size(); ++pt_i) {
+          const cv::Point& pt = cluster[pt_i];
+          int pixel_index = pt.y * rgb_cols + pt.x;
+          labels.data[pixel_index] = 1;
+        }
+      }
+    }
   }
+
   // if (debug_) {
   //  cv::namedWindow("Labels");
   //  cv::imshow("Labels", labels * 255);
@@ -195,8 +233,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   const float max_x = 0.3;
   const float min_y = -0.12;
   const float max_y = 0.12;
-  const float min_z = -0.06;
-  const float max_z = 0.06;
+  const float min_z = -0.09;
+  const float max_z = 0.09;
 
   Eigen::Affine3f center(Eigen::Affine3f::Identity());
   center(0, 3) = (max_x + min_x) / 2;
@@ -480,5 +518,108 @@ void Labeling::LabelWithRegionGrowingRGB(float4* points,
   //    }
   //  }
   //}
+}
+
+void ReduceRgb(cv::Mat rgb, cv::Mat near_hand_mask, int num_bins,
+               cv::OutputArray reduced) {
+  reduced.create(rgb.rows, rgb.cols, CV_8UC3);
+  cv::Mat reduced_mat = reduced.getMat();
+  reduced_mat = cv::Scalar(200, 200, 200);
+  cv::Mat_<cv::Vec3b> _rgb = rgb;
+  cv::Mat_<cv::Vec3b> _reduced = reduced_mat;
+  float bin_size = 256.0 / num_bins;
+  for (int row = 0; row < rgb.rows; ++row) {
+    for (int col = 0; col < rgb.cols; ++col) {
+      int pixel_index = row * rgb.cols + col;
+      if (near_hand_mask.data[pixel_index] != 0) {
+        // Bin into 5 possible values of R, G, and B.
+        int r = _rgb(row, col)[0] / bin_size;
+        int g = _rgb(row, col)[1] / bin_size;
+        int b = _rgb(row, col)[2] / bin_size;
+        _reduced(row, col)[0] = r * bin_size;
+        _reduced(row, col)[1] = g * bin_size;
+        _reduced(row, col)[2] = b * bin_size;
+      }
+    }
+  }
+  reduced_mat = _reduced;
+}
+
+// Used only for FindConnectedComponents
+inline bool IsValidNeighbor(cv::Point current, cv::Point neighbor,
+                            cv::Mat reduced_rgb, cv::Mat unvisited) {
+  cv::Mat_<cv::Vec3b> _rgb = reduced_rgb;
+  int rows = reduced_rgb.rows;
+  int cols = reduced_rgb.cols;
+
+  int current_r = _rgb(current.y, current.x)[0];
+  int current_g = _rgb(current.y, current.x)[1];
+  int current_b = _rgb(current.y, current.x)[2];
+
+  int n_index = neighbor.y * cols + neighbor.x;
+  int neighbor_r = _rgb(neighbor.y, neighbor.x)[0];
+  int neighbor_g = _rgb(neighbor.y, neighbor.x)[1];
+  int neighbor_b = _rgb(neighbor.y, neighbor.x)[2];
+  if (neighbor.y >= 0 && neighbor.y < rows && unvisited.data[n_index] &&
+      neighbor_r == current_r && neighbor_g == current_g &&
+      neighbor_b == current_b) {
+    return true;
+  }
+  return false;
+}
+
+void FindConnectedComponents(cv::Mat reduced_rgb, cv::Mat near_hand_mask,
+                             std::vector<std::vector<cv::Point> >* clusters) {
+  int rows = reduced_rgb.rows;
+  int cols = reduced_rgb.cols;
+  cv::Mat unvisited(rows, cols, CV_8UC1);
+  unvisited = cv::Scalar(0);
+  near_hand_mask.copyTo(unvisited, near_hand_mask);
+  cv::Point start_pt;
+  double max_val;
+  cv::minMaxLoc(unvisited, NULL, &max_val, NULL, &start_pt, near_hand_mask);
+
+  cv::Mat_<cv::Vec3b> _rgb = reduced_rgb;
+  while (max_val != 0) {
+    std::list<cv::Point> queue;
+    queue.push_back(start_pt);
+    std::vector<cv::Point> cluster;
+    while (!queue.empty()) {
+      const cv::Point& pt = queue.front();
+      int index = pt.y * cols + pt.x;
+      if (unvisited.data[index]) {
+        cluster.push_back(pt);
+      } else {
+        queue.pop_front();
+        continue;
+      }
+      unvisited.data[index] = 0;
+
+      cv::Point top(pt.x, pt.y - 1);
+      if (IsValidNeighbor(pt, top, reduced_rgb, unvisited)) {
+        queue.push_back(top);
+      }
+
+      cv::Point bottom(pt.x, pt.y + 1);
+      if (IsValidNeighbor(pt, bottom, reduced_rgb, unvisited)) {
+        queue.push_back(bottom);
+      }
+
+      cv::Point right(pt.x + 1, pt.y);
+      if (IsValidNeighbor(pt, right, reduced_rgb, unvisited)) {
+        queue.push_back(right);
+      }
+
+      cv::Point left(pt.x - 1, pt.y);
+      if (IsValidNeighbor(pt, left, reduced_rgb, unvisited)) {
+        queue.push_back(left);
+      }
+
+      queue.pop_front();
+    }
+
+    cv::minMaxLoc(unvisited, NULL, &max_val, NULL, &start_pt, near_hand_mask);
+    clusters->push_back(cluster);
+  }
 }
 }  // namespace skinseg
