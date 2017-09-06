@@ -18,6 +18,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/PointCloud2.h"
+#include "std_msgs/Float64.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "skin_segmentation/constants.h"
@@ -47,7 +48,11 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       labeling_algorithm_(kThermal),
       first_msg_time_(0),
       camera_data_(),
-      rgbd_info_() {
+      rgbd_info_(),
+      thermal_depth_skew_pub_(
+          nh_.advertise<std_msgs::Float64>("thermal_depth_skew", 1)),
+      rgb_depth_skew_pub_(
+          nh_.advertise<std_msgs::Float64>("rgb_depth_skew", 1)) {
   projection_.GetCameraData(&camera_data_);
   projection_.GetRgbdCameraInfo(&rgbd_info_);
 }
@@ -73,6 +78,14 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   ROS_INFO("Thermal - depth skew: %f, RGB - depth skew: %f",
            (thermal->header.stamp - depth->header.stamp).toSec(),
            (rgb->header.stamp - depth->header.stamp).toSec());
+  if (debug_) {
+    std_msgs::Float64 td_skew;
+    td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
+    thermal_depth_skew_pub_.publish(td_skew);
+    std_msgs::Float64 rd_skew;
+    rd_skew.data = (rgb->header.stamp - depth->header.stamp).toSec();
+    rgb_depth_skew_pub_.publish(rd_skew);
+  }
   if (first_msg_time_.isZero()) {
     first_msg_time_ = rgb->header.stamp;
   }
@@ -221,7 +234,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv_bridge::CvImage labels_bridge(
       rgb->header, sensor_msgs::image_encodings::TYPE_8UC1, labels);
 
-  cv::Mat overlay = rgb_bridge->image;
+  cv::Mat overlay(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(150, 150, 150));
+  rgb_bridge->image.copyTo(overlay, depth_bridge->image != 0);
   overlay.setTo(cv::Scalar(0, 0, 255), labels != 0);
   cv::namedWindow("Label overlay");
   cv::imshow("Label overlay", overlay);
