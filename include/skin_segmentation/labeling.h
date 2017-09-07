@@ -58,7 +58,6 @@ class Labeling {
   ros::Publisher cloud_pub_;
   std::string labeling_algorithm_;
 
-  ros::Time first_msg_time_;
   CameraData camera_data_;
   sensor_msgs::CameraInfo rgbd_info_;
   ros::Publisher thermal_depth_skew_pub_;

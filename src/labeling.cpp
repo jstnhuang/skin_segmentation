@@ -46,7 +46,6 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       thermal_pub_(nh_.advertise<sensor_msgs::Image>(kThermalTopic, 2)),
       cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 1)),
       labeling_algorithm_(kThermal),
-      first_msg_time_(0),
       camera_data_(),
       rgbd_info_(),
       thermal_depth_skew_pub_(
@@ -75,32 +74,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     return;
   }
 
-  ROS_INFO("Thermal - depth skew: %f, RGB - depth skew: %f",
-           (thermal->header.stamp - depth->header.stamp).toSec(),
-           (rgb->header.stamp - depth->header.stamp).toSec());
-  if (debug_) {
-    std_msgs::Float64 td_skew;
-    td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
-    thermal_depth_skew_pub_.publish(td_skew);
-    std_msgs::Float64 rd_skew;
-    rd_skew.data = (rgb->header.stamp - depth->header.stamp).toSec();
-    rgb_depth_skew_pub_.publish(rd_skew);
-  }
-  if (first_msg_time_.isZero()) {
-    first_msg_time_ = rgb->header.stamp;
-  }
-
-  double thermal_threshold;
-  ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
-  const int rgb_rows = rgb->height;
-  const int rgb_cols = rgb->width;
-
-  cv::Mat thermal_projected;
-  float4* points = new float4[rgb_cols * rgb_rows];
-  projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected,
-                                  points);
-
+  // Step through nerf tracker
   float model_scale = nerf_->model_instance->getScale();
+  nerf_->observation->Callback(rgb, depth);
+  nerf_->observation->advance();
+  nerf_->optimizer->optimize(nerf_->opt_parameters);
+
   if (debug_) {
     visualization_msgs::MarkerArray skeleton;
     SkeletonMarkerArray(nerf_, model_scale, &skeleton);
@@ -121,9 +100,30 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     skeleton_pub_.publish(skeleton);
   }
 
-  nerf_->observation->Callback(rgb, depth);
-  nerf_->observation->advance();
-  nerf_->optimizer->optimize(nerf_->opt_parameters);
+  // If time skew is too great, skip this frame
+  ROS_INFO("Thermal - depth skew: %f, RGB - depth skew: %f",
+           (thermal->header.stamp - depth->header.stamp).toSec(),
+           (rgb->header.stamp - depth->header.stamp).toSec());
+  if (debug_) {
+    std_msgs::Float64 td_skew;
+    td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
+    thermal_depth_skew_pub_.publish(td_skew);
+    std_msgs::Float64 rd_skew;
+    rd_skew.data = (rgb->header.stamp - depth->header.stamp).toSec();
+    rgb_depth_skew_pub_.publish(rd_skew);
+  }
+
+  double thermal_threshold;
+  ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
+  const int rgb_rows = rgb->height;
+  const int rgb_cols = rgb->width;
+
+  cv::Mat thermal_projected;
+  float4* points = new float4[rgb_cols * rgb_rows];
+  projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected,
+                                  points);
+
+  // Get hand poses
   const nerf::DualQuaternion* joint_poses =
       nerf_->model_instance->getHostJointPose();
   int l_index =
