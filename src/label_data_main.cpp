@@ -1,4 +1,4 @@
-// Labels data given a bag file with RGB, depth, and thermal images.
+// Labels data given a bag file with skin_segmentation_msgs/Images.
 // The results are written out to a new bag file with the RGB, depth, and labels
 // applied to the image.
 
@@ -9,10 +9,6 @@
 #undef Success  // Evil workaround. nerf includes glx, which defines this again
 #include "Eigen/Dense"
 #include "camera_calibration_parsers/parse.h"
-#include "message_filters/cache.h"
-#include "message_filters/subscriber.h"
-#include "message_filters/sync_policies/approximate_time.h"
-#include "message_filters/synchronizer.h"
 #include "model/model.h"
 #include "model/model_instance.h"
 #include "observation/ros_observation.h"
@@ -29,11 +25,10 @@
 #include "skin_segmentation/load_configs.h"
 #include "skin_segmentation/nerf.h"
 #include "skin_segmentation/projection.h"
+#include "skin_segmentation_msgs/Images.h"
 
 using sensor_msgs::CameraInfo;
 using sensor_msgs::Image;
-typedef message_filters::sync_policies::ApproximateTime<Image, Image, Image>
-    MyPolicy;
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "skin_segmentation_label_data");
@@ -79,20 +74,11 @@ int main(int argc, char** argv) {
   nerf.model_instance->setScale(model_scale);
   skinseg::Labeling labeling(projection, &nerf, &output_bag);
 
-  message_filters::Cache<Image> rgb_cache(100);
-  message_filters::Cache<Image> depth_cache(100);
-  message_filters::Cache<Image> thermal_cache(100);
-  message_filters::Synchronizer<MyPolicy> sync(MyPolicy(100), rgb_cache,
-                                               depth_cache, thermal_cache);
-  sync.registerCallback(&skinseg::Labeling::Process, &labeling);
-
   rosbag::Bag input_bag;
   std::string input_bag_path(argv[1]);
   input_bag.open(input_bag_path, rosbag::bagmode::Read);
   std::vector<std::string> topics;
-  topics.push_back(skinseg::kRgbTopic);
-  topics.push_back(skinseg::kDepthTopic);
-  topics.push_back(skinseg::kThermalTopic);
+  topics.push_back(skinseg::kImageSetTopic);
   rosbag::View view(input_bag, rosbag::TopicQuery(topics));
 
   bool debug;
@@ -111,7 +97,7 @@ int main(int argc, char** argv) {
   int i = 0;
 
   ros::Time start = view.getBeginTime() + ros::Duration(4);
-  ros::Time end = view.getEndTime() - ros::Duration(5);
+  ros::Time end = view.getEndTime() - ros::Duration(4);
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
     if (max_images > 0 && i >= max_images) {
       break;
@@ -120,13 +106,15 @@ int main(int argc, char** argv) {
     if (time < start || time > end) {
       continue;
     }
-    if (it->getTopic() == skinseg::kRgbTopic) {
-      rgb_cache.add(it->instantiate<Image>());
-    } else if (it->getTopic() == skinseg::kDepthTopic) {
-      depth_cache.add(it->instantiate<Image>());
-    } else if (it->getTopic() == skinseg::kThermalTopic) {
-      thermal_cache.add(it->instantiate<Image>());
-    }
+    skin_segmentation_msgs::ImagesConstPtr images =
+        it->instantiate<skin_segmentation_msgs::Images>();
+    Image::Ptr rgb(new Image);
+    *rgb = images->rgb;
+    Image::Ptr depth(new Image);
+    *depth = images->depth;
+    Image::Ptr thermal(new Image);
+    *thermal = images->thermal;
+    labeling.Process(rgb, depth, thermal);
     ++i;
     if (i % 100 == 0) {
       ROS_INFO("Processed image %d of %d (%f)", i, num_msgs,

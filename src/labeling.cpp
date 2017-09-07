@@ -186,7 +186,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
     cv::namedWindow("Reduced RGB");
     cv::imshow("Reduced RGB", rgb_reduced);
-    ROS_INFO("Found %ld clusters", clusters.size());
 
     // Number of hot pixels in each cluster.
     int thermal_counts[clusters.size()];
