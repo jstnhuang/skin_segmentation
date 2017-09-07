@@ -224,19 +224,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     boxes.markers.push_back(r_pt);
 
     skeleton_pub_.publish(boxes);
-
-    cv::namedWindow("RGB hands");
-    cv::Mat rgb_hands;
-    rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
-    cv::imshow("RGB hands", rgb_hands);
-
-    cv::namedWindow("Thermal hands");
-    cv::Mat thermal_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
-    thermal_projected.copyTo(thermal_hands, near_hand_mask);
-    cv::Mat thermal_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.1));
-    cv::normalize(thermal_hands, thermal_normalized, 0, 1, cv::NORM_MINMAX,
-                  CV_32F, thermal_hands != 0);
-    cv::imshow("Thermal hands", thermal_normalized);
   }
 
   // If time skew is too great, skip this frame
@@ -262,6 +249,21 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     rgb_depth_skew_pub_.publish(rd_skew);
   }
 
+  if (debug_) {
+    cv::namedWindow("RGB hands");
+    cv::Mat rgb_hands;
+    rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
+    cv::imshow("RGB hands", rgb_hands);
+
+    cv::namedWindow("Thermal hands");
+    cv::Mat thermal_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
+    thermal_projected.copyTo(thermal_hands, near_hand_mask);
+    cv::Mat thermal_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.5));
+    cv::normalize(thermal_hands, thermal_normalized, 0, 1, cv::NORM_MINMAX,
+                  CV_32F, thermal_hands != 0);
+    cv::imshow("Thermal hands", thermal_normalized);
+  }
+
   // Labeling
   double thermal_threshold;
   ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
@@ -275,14 +277,27 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
                      near_hand_mask, thermal_threshold, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
     cv::Mat blurred_rgb;
-    cv::GaussianBlur(rgb_bridge->image, blurred_rgb, cv::Size(3, 3), 0, 0);
+    double bilateral_sigma;
+    ros::param::param("bilateral_sigma", bilateral_sigma, 50.0);
+    cv::bilateralFilter(rgb_bridge->image, blurred_rgb, 5, bilateral_sigma,
+                        bilateral_sigma);
+
+    if (debug_) {
+      cv::namedWindow("Filtered RGB hands");
+      cv::Mat rgb_hands2(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(0, 0, 0));
+      blurred_rgb.copyTo(rgb_hands2, near_hand_mask);
+      cv::imshow("Filtered RGB hands", rgb_hands2);
+    }
+
+    cv::Mat eroded_mask;
+    cv::erode(near_hand_mask, eroded_mask, cv::Mat());
 
     int num_bins;
     ros::param::param("num_bins", num_bins, 2);
     cv::Mat rgb_reduced;
-    ReduceRgb(blurred_rgb, near_hand_mask, num_bins, rgb_reduced);
+    ReduceRgb(blurred_rgb, eroded_mask, num_bins, rgb_reduced);
     std::vector<std::vector<cv::Point> > clusters;
-    FindConnectedComponents(rgb_reduced, near_hand_mask, &clusters);
+    FindConnectedComponents(rgb_reduced, eroded_mask, &clusters);
 
     cv::namedWindow("Reduced RGB");
     cv::imshow("Reduced RGB", rgb_reduced);
