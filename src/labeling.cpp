@@ -100,31 +100,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     skeleton_pub_.publish(skeleton);
   }
 
-  // If time skew is too great, skip this frame
-  double thermal_depth_skew =
-      (thermal->header.stamp - depth->header.stamp).toSec();
-  double rgb_depth_skew = (rgb->header.stamp - depth->header.stamp).toSec();
-  double thermal_rgb_skew = (thermal->header.stamp - rgb->header.stamp).toSec();
-  ROS_INFO("Thermal-depth: %f, RGB-depth: %f, Thermal-RGB: %f",
-           thermal_depth_skew, rgb_depth_skew, thermal_rgb_skew);
-  double max_time_skew;
-  ros::param::param("max_time_skew", max_time_skew, 0.01);
-  if (fabs(thermal_depth_skew) > max_time_skew ||
-      fabs(rgb_depth_skew) > max_time_skew ||
-      fabs(thermal_rgb_skew) > max_time_skew) {
-    return;
-  }
-  if (debug_) {
-    std_msgs::Float64 td_skew;
-    td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
-    thermal_depth_skew_pub_.publish(td_skew);
-    std_msgs::Float64 rd_skew;
-    rd_skew.data = (rgb->header.stamp - depth->header.stamp).toSec();
-    rgb_depth_skew_pub_.publish(rd_skew);
-  }
-
-  double thermal_threshold;
-  ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
   const int rgb_rows = rgb->height;
   const int rgb_cols = rgb->width;
 
@@ -164,6 +139,92 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
   if (debug_) {
+    // Only for visualization, be sure to edit the real values in labeling.cu
+    const float min_x = 0.07;
+    const float max_x = 0.3;
+    const float min_y = -0.12;
+    const float max_y = 0.12;
+    const float min_z = -0.09;
+    const float max_z = 0.09;
+
+    Eigen::Affine3f center(Eigen::Affine3f::Identity());
+    center(0, 3) = (max_x + min_x) / 2;
+    center(1, 3) = (max_y + min_y) / 2;
+    center(2, 3) = (max_z + min_z) / 2;
+
+    visualization_msgs::MarkerArray boxes;
+    visualization_msgs::Marker l_box;
+    l_box.header.frame_id = "camera_rgb_optical_frame";
+    l_box.type = visualization_msgs::Marker::CUBE;
+    l_box.ns = "hand_box";
+    l_box.id = 0;
+    l_box.color.b = 1;
+    l_box.color.a = 0.3;
+    l_box.scale.x = max_x - min_x;
+    l_box.scale.y = max_y - min_y;
+    l_box.scale.z = max_z - min_z;
+
+    Eigen::Affine3f l_pose = l_matrix * center;
+    l_box.pose.position.x = l_pose.translation().x();
+    l_box.pose.position.y = l_pose.translation().y();
+    l_box.pose.position.z = l_pose.translation().z();
+    Eigen::Quaternionf l_rot(l_pose.rotation());
+    l_box.pose.orientation.w = l_rot.w();
+    l_box.pose.orientation.x = l_rot.x();
+    l_box.pose.orientation.y = l_rot.y();
+    l_box.pose.orientation.z = l_rot.z();
+    boxes.markers.push_back(l_box);
+
+    visualization_msgs::Marker l_pt;
+    l_pt.header.frame_id = "camera_rgb_optical_frame";
+    l_pt.type = visualization_msgs::Marker::SPHERE;
+    l_pt.ns = "hand_pt";
+    l_pt.id = 0;
+    l_pt.color.g = 1;
+    l_pt.color.a = 1;
+    l_pt.scale.x = 0.04;
+    l_pt.scale.y = 0.04;
+    l_pt.scale.z = 0.04;
+    l_pt.pose = l_box.pose;
+    boxes.markers.push_back(l_pt);
+
+    visualization_msgs::Marker r_box;
+    r_box.header.frame_id = "camera_rgb_optical_frame";
+    r_box.type = visualization_msgs::Marker::CUBE;
+    r_box.ns = "hand_box";
+    r_box.id = 1;
+    r_box.color.b = 1;
+    r_box.color.a = 0.3;
+    r_box.scale.x = max_x - min_x;
+    r_box.scale.y = max_y - min_y;
+    r_box.scale.z = max_z - min_z;
+
+    Eigen::Affine3f r_pose = r_matrix * center;
+    r_box.pose.position.x = r_pose.translation().x();
+    r_box.pose.position.y = r_pose.translation().y();
+    r_box.pose.position.z = r_pose.translation().z();
+    Eigen::Quaternionf r_rot(r_pose.rotation());
+    r_box.pose.orientation.w = r_rot.w();
+    r_box.pose.orientation.x = r_rot.x();
+    r_box.pose.orientation.y = r_rot.y();
+    r_box.pose.orientation.z = r_rot.z();
+    boxes.markers.push_back(r_box);
+
+    visualization_msgs::Marker r_pt;
+    r_pt.header.frame_id = "camera_rgb_optical_frame";
+    r_pt.type = visualization_msgs::Marker::SPHERE;
+    r_pt.ns = "hand_pt";
+    r_pt.id = 1;
+    r_pt.color.g = 1;
+    r_pt.color.a = 1;
+    r_pt.scale.x = 0.04;
+    r_pt.scale.y = 0.04;
+    r_pt.scale.z = 0.04;
+    r_pt.pose = r_box.pose;
+    boxes.markers.push_back(r_pt);
+
+    skeleton_pub_.publish(boxes);
+
     cv::namedWindow("RGB hands");
     cv::Mat rgb_hands;
     rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
@@ -178,7 +239,33 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     cv::imshow("Thermal hands", thermal_normalized);
   }
 
+  // If time skew is too great, skip this frame
+  double thermal_depth_skew =
+      (thermal->header.stamp - depth->header.stamp).toSec();
+  double rgb_depth_skew = (rgb->header.stamp - depth->header.stamp).toSec();
+  double thermal_rgb_skew = (thermal->header.stamp - rgb->header.stamp).toSec();
+  ROS_INFO("Thermal-depth: %f, RGB-depth: %f, Thermal-RGB: %f",
+           thermal_depth_skew, rgb_depth_skew, thermal_rgb_skew);
+  double max_time_skew;
+  ros::param::param("max_time_skew", max_time_skew, 0.01);
+  if (fabs(thermal_depth_skew) > max_time_skew ||
+      fabs(rgb_depth_skew) > max_time_skew ||
+      fabs(thermal_rgb_skew) > max_time_skew) {
+    return;
+  }
+  if (debug_) {
+    std_msgs::Float64 td_skew;
+    td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
+    thermal_depth_skew_pub_.publish(td_skew);
+    std_msgs::Float64 rd_skew;
+    rd_skew.data = (rgb->header.stamp - depth->header.stamp).toSec();
+    rgb_depth_skew_pub_.publish(rd_skew);
+  }
+
   // Labeling
+  double thermal_threshold;
+  ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
+
   cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   if (labeling_algorithm_ == kThermal) {
     LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
@@ -187,10 +274,13 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
                      near_hand_mask, thermal_threshold, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
+    cv::Mat blurred_rgb;
+    cv::GaussianBlur(rgb_bridge->image, blurred_rgb, cv::Size(3, 3), 0, 0);
+
     int num_bins;
     ros::param::param("num_bins", num_bins, 2);
     cv::Mat rgb_reduced;
-    ReduceRgb(rgb_bridge->image, near_hand_mask, num_bins, rgb_reduced);
+    ReduceRgb(blurred_rgb, near_hand_mask, num_bins, rgb_reduced);
     std::vector<std::vector<cv::Point> > clusters;
     FindConnectedComponents(rgb_reduced, near_hand_mask, &clusters);
 
@@ -250,92 +340,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv::imshow("Label overlay", overlay);
   cv_bridge::CvImage overlay_bridge(
       rgb->header, sensor_msgs::image_encodings::BGR8, overlay);
-
-  // Only for visualization, be sure to edit the real values in labeling.cu
-  const float min_x = 0.07;
-  const float max_x = 0.3;
-  const float min_y = -0.12;
-  const float max_y = 0.12;
-  const float min_z = -0.09;
-  const float max_z = 0.09;
-
-  Eigen::Affine3f center(Eigen::Affine3f::Identity());
-  center(0, 3) = (max_x + min_x) / 2;
-  center(1, 3) = (max_y + min_y) / 2;
-  center(2, 3) = (max_z + min_z) / 2;
-
-  visualization_msgs::MarkerArray boxes;
-  visualization_msgs::Marker l_box;
-  l_box.header.frame_id = "camera_rgb_optical_frame";
-  l_box.type = visualization_msgs::Marker::CUBE;
-  l_box.ns = "hand_box";
-  l_box.id = 0;
-  l_box.color.b = 1;
-  l_box.color.a = 0.3;
-  l_box.scale.x = max_x - min_x;
-  l_box.scale.y = max_y - min_y;
-  l_box.scale.z = max_z - min_z;
-
-  Eigen::Affine3f l_pose = l_matrix * center;
-  l_box.pose.position.x = l_pose.translation().x();
-  l_box.pose.position.y = l_pose.translation().y();
-  l_box.pose.position.z = l_pose.translation().z();
-  Eigen::Quaternionf l_rot(l_pose.rotation());
-  l_box.pose.orientation.w = l_rot.w();
-  l_box.pose.orientation.x = l_rot.x();
-  l_box.pose.orientation.y = l_rot.y();
-  l_box.pose.orientation.z = l_rot.z();
-  boxes.markers.push_back(l_box);
-
-  visualization_msgs::Marker l_pt;
-  l_pt.header.frame_id = "camera_rgb_optical_frame";
-  l_pt.type = visualization_msgs::Marker::SPHERE;
-  l_pt.ns = "hand_pt";
-  l_pt.id = 0;
-  l_pt.color.g = 1;
-  l_pt.color.a = 1;
-  l_pt.scale.x = 0.04;
-  l_pt.scale.y = 0.04;
-  l_pt.scale.z = 0.04;
-  l_pt.pose = l_box.pose;
-  boxes.markers.push_back(l_pt);
-
-  visualization_msgs::Marker r_box;
-  r_box.header.frame_id = "camera_rgb_optical_frame";
-  r_box.type = visualization_msgs::Marker::CUBE;
-  r_box.ns = "hand_box";
-  r_box.id = 1;
-  r_box.color.b = 1;
-  r_box.color.a = 0.3;
-  r_box.scale.x = max_x - min_x;
-  r_box.scale.y = max_y - min_y;
-  r_box.scale.z = max_z - min_z;
-
-  Eigen::Affine3f r_pose = r_matrix * center;
-  r_box.pose.position.x = r_pose.translation().x();
-  r_box.pose.position.y = r_pose.translation().y();
-  r_box.pose.position.z = r_pose.translation().z();
-  Eigen::Quaternionf r_rot(r_pose.rotation());
-  r_box.pose.orientation.w = r_rot.w();
-  r_box.pose.orientation.x = r_rot.x();
-  r_box.pose.orientation.y = r_rot.y();
-  r_box.pose.orientation.z = r_rot.z();
-  boxes.markers.push_back(r_box);
-
-  visualization_msgs::Marker r_pt;
-  r_pt.header.frame_id = "camera_rgb_optical_frame";
-  r_pt.type = visualization_msgs::Marker::SPHERE;
-  r_pt.ns = "hand_pt";
-  r_pt.id = 1;
-  r_pt.color.g = 1;
-  r_pt.color.a = 1;
-  r_pt.scale.x = 0.04;
-  r_pt.scale.y = 0.04;
-  r_pt.scale.z = 0.04;
-  r_pt.pose = r_box.pose;
-  boxes.markers.push_back(r_pt);
-
-  skeleton_pub_.publish(boxes);
 
   // Even though there is some time difference, we are assuming that we have
   // done our best to temporally align the images and now assume all the images
