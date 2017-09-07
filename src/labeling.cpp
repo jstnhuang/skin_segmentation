@@ -101,9 +101,19 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   }
 
   // If time skew is too great, skip this frame
-  ROS_INFO("Thermal - depth skew: %f, RGB - depth skew: %f",
-           (thermal->header.stamp - depth->header.stamp).toSec(),
-           (rgb->header.stamp - depth->header.stamp).toSec());
+  double thermal_depth_skew =
+      (thermal->header.stamp - depth->header.stamp).toSec();
+  double rgb_depth_skew = (rgb->header.stamp - depth->header.stamp).toSec();
+  double thermal_rgb_skew = (thermal->header.stamp - rgb->header.stamp).toSec();
+  ROS_INFO("Thermal-depth: %f, RGB-depth: %f, Thermal-RGB: %f",
+           thermal_depth_skew, rgb_depth_skew, thermal_rgb_skew);
+  double max_time_skew;
+  ros::param::param("max_time_skew", max_time_skew, 0.01);
+  if (fabs(thermal_depth_skew) > max_time_skew ||
+      fabs(rgb_depth_skew) > max_time_skew ||
+      fabs(thermal_rgb_skew) > max_time_skew) {
+    return;
+  }
   if (debug_) {
     std_msgs::Float64 td_skew;
     td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
