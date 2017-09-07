@@ -48,20 +48,12 @@ int main(int argc, char** argv) {
   topics.push_back(skinseg::kRgbTopic);
   topics.push_back(skinseg::kNormalizedThermalTopic);
   rosbag::View view(bag, rosbag::TopicQuery(topics));
-  size_t size = view.size();
-  int i = 0;
   for (rosbag::View::const_iterator it = view.begin(); it != view.end(); ++it) {
     Image::ConstPtr image = it->instantiate<Image>();
-    if (!image) {
-      continue;
-    }
     if (it->getTopic() == skinseg::kRgbTopic) {
       rgb_cache.add(image);
-    } else if (it->getTopic() == skinseg::kThermalTopic) {
+    } else if (it->getTopic() == skinseg::kNormalizedThermalTopic) {
       thermal_cache.add(image);
-    }
-    if (++i % 100 == 0) {
-      ROS_INFO("Processing image %d of %ld", i, size);
     }
   }
   bag.close();
