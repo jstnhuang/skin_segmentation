@@ -60,13 +60,28 @@ void CalibrationCapture::Callback(const Image::ConstPtr& rgb_msg,
   const cv::Size kSize(7, 7);
 
   cv_bridge::CvImageConstPtr cv_thermal = cv_bridge::toCvShare(thermal_msg);
+  double contrast_factor;
+  ros::param::param("contrast_factor", contrast_factor, 1.2);
+  cv::Mat thermal_high_contrast = cv_thermal->image * contrast_factor;
   Corners thermal_corners;
   bool thermal_found =
-      cv::findChessboardCorners(cv_thermal->image, kSize, thermal_corners);
+      cv::findChessboardCorners(thermal_high_contrast, kSize, thermal_corners);
+  cv::Mat thermal_viz = thermal_high_contrast.clone();
+  cv::drawChessboardCorners(thermal_viz, kSize, thermal_corners, thermal_found);
+  cv_bridge::CvImage thermal_cv_out(cv_thermal->header, cv_thermal->encoding,
+                                    thermal_viz);
+  thermal_pub_.publish(thermal_cv_out.toImageMsg());
+  // Don't waste time searching for RGB corners.
+  if (!thermal_found) {
+    return;
+  }
 
   cv_bridge::CvImageConstPtr cv_rgb = cv_bridge::toCvShare(rgb_msg);
   Corners rgb_corners;
   bool rgb_found = cv::findChessboardCorners(cv_rgb->image, kSize, rgb_corners);
+  cv_bridge::CvImage rgb_cv_out = *cv_rgb;
+  cv::drawChessboardCorners(rgb_cv_out.image, kSize, rgb_corners, rgb_found);
+  rgb_pub_.publish(rgb_cv_out.toImageMsg());
 
   if (thermal_found && rgb_found) {
     try {
@@ -81,32 +96,6 @@ void CalibrationCapture::Callback(const Image::ConstPtr& rgb_msg,
 
     ROS_INFO("Saved image");
     bag_.close();
-  }
-
-  if (thermal_found) {
-    Corners thermal_fixed;
-    ReorderChessCorners(thermal_corners, kSize, &thermal_fixed);
-    cv_bridge::CvImage thermal_cv_out = *cv_thermal;
-    cv::drawChessboardCorners(thermal_cv_out.image, kSize, thermal_fixed,
-                              thermal_found);
-    thermal_pub_.publish(thermal_cv_out.toImageMsg());
-  } else {
-    cv_bridge::CvImage thermal_cv_out = *cv_thermal;
-    cv::drawChessboardCorners(thermal_cv_out.image, kSize, thermal_corners,
-                              thermal_found);
-    thermal_pub_.publish(thermal_cv_out.toImageMsg());
-  }
-
-  if (rgb_found) {
-    Corners rgb_fixed;
-    ReorderChessCorners(rgb_corners, kSize, &rgb_fixed);
-    cv_bridge::CvImage cv_out = *cv_rgb;
-    cv::drawChessboardCorners(cv_out.image, kSize, rgb_fixed, rgb_found);
-    rgb_pub_.publish(cv_out.toImageMsg());
-  } else {
-    cv_bridge::CvImage rgb_cv_out = *cv_rgb;
-    cv::drawChessboardCorners(rgb_cv_out.image, kSize, rgb_corners, rgb_found);
-    rgb_pub_.publish(rgb_cv_out.toImageMsg());
   }
 }
 
