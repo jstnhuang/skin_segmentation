@@ -269,7 +269,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
                                     labels);
   } else if (labeling_algorithm_ == kFloodFill) {
     LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
-                       thermal_threshold, labels);
+                       thermal_threshold, debug_, labels);
   } else {
     ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
                        labeling_algorithm_.c_str());
@@ -652,7 +652,7 @@ void FindConnectedComponents(cv::Mat reduced_rgb, cv::Mat near_hand_mask,
 
 void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
                         cv::Mat thermal_projected, double thermal_threshold,
-                        cv::OutputArray labels) {
+                        bool debug, cv::OutputArray labels) {
   // floodFill API requires the mask to have 0s in the area to fill. We use the
   // mask as follows:
   // 0: "hot" pixel to fill
@@ -665,6 +665,14 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   cv::Mat hot_pixels = thermal_projected > thermal_threshold;
   cv::Mat inverted_hot_pixels = 1 - hot_pixels;  // Flip 0s and 1s
   inverted_hot_pixels.copyTo(mask_image, near_hand_mask);
+
+  if (debug) {
+    // Visualize hot pixels
+    cv::namedWindow("Hot pixels");
+    cv::Mat hot_hand_pixels(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(0));
+    hot_pixels.copyTo(hot_hand_pixels, near_hand_mask);
+    cv::imshow("Hot pixels", hot_pixels * 255);
+  }
 
   cv::Scalar unused_new_val(0, 0, 0);
   cv::Rect unused_rect;

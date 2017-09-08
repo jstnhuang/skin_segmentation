@@ -81,7 +81,7 @@ void LabelWithReducedColorComponents(cv::Mat rgb, cv::Mat near_hand_mask,
 
 void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
                         cv::Mat thermal_projected, double thermal_threshold,
-                        cv::OutputArray labels);
+                        bool debug, cv::OutputArray labels);
 
 // Reduces the color space such that there are only num_bins of R, G, and B.
 // Also uses the mask to only process points near the hand.
