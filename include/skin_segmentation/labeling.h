@@ -73,6 +73,11 @@ void MaskToIndices(uint8_t* mask, int len,
 void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud);
 
+void LabelWithReducedColorComponents(cv::Mat rgb, cv::Mat near_hand_mask,
+                                     cv::Mat thermal_projected,
+                                     double thermal_threshold,
+                                     cv::OutputArray labels);
+
 // Reduces the color space such that there are only num_bins of R, G, and B.
 // Also uses the mask to only process points near the hand.
 void ReduceRgb(cv::Mat rgb, cv::Mat near_hand_mask, int num_bins,
