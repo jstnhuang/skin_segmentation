@@ -264,49 +264,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
                      near_hand_mask, thermal_threshold, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
-    int num_bins;
-    ros::param::param("num_bins", num_bins, 2);
-    cv::Mat rgb_reduced;
-    ReduceRgb(rgb_bridge->image, near_hand_mask, num_bins, rgb_reduced);
-    std::vector<std::vector<cv::Point> > clusters;
-    FindConnectedComponents(rgb_reduced, near_hand_mask, &clusters);
-
-    cv::namedWindow("Reduced RGB");
-    cv::imshow("Reduced RGB", rgb_reduced);
-
-    // Number of hot pixels in each cluster.
-    int thermal_counts[clusters.size()];
-    for (size_t i = 0; i < clusters.size(); ++i) {
-      thermal_counts[i] = 0;
-    }
-
-    for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
-      const std::vector<cv::Point>& cluster = clusters[cluster_i];
-      for (size_t pt_i = 0; pt_i < cluster.size(); ++pt_i) {
-        const cv::Point& pt = cluster[pt_i];
-        int pixel_index = pt.y * rgb_cols + pt.x;
-        uint16_t thermal_val =
-            reinterpret_cast<uint16_t*>(thermal_projected.data)[pixel_index];
-        if (thermal_val > thermal_threshold) {
-          thermal_counts[cluster_i] += 1;
-        }
-      }
-    }
-
-    float percent_hot_threshold;
-    ros::param::param("percent_hot_threshold", percent_hot_threshold, 0.75f);
-    for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
-      const std::vector<cv::Point>& cluster = clusters[cluster_i];
-      float thermal_percent =
-          static_cast<float>(thermal_counts[cluster_i]) / cluster.size();
-      if (thermal_percent > percent_hot_threshold) {
-        for (size_t pt_i = 0; pt_i < cluster.size(); ++pt_i) {
-          const cv::Point& pt = cluster[pt_i];
-          int pixel_index = pt.y * rgb_cols + pt.x;
-          labels.data[pixel_index] = 1;
-        }
-      }
-    }
+    LabelWithReducedColorComponents(rgb_bridge->image, near_hand_mask,
+                                    thermal_projected, thermal_threshold,
+                                    labels);
   }
 
   delete[] points;
@@ -527,6 +487,58 @@ void Labeling::LabelWithRegionGrowingRGB(float4* points,
   //    }
   //  }
   //}
+}
+
+void LabelWithReducedColorComponents(cv::Mat rgb, cv::Mat near_hand_mask,
+                                     cv::Mat thermal_projected,
+                                     double thermal_threshold,
+                                     cv::OutputArray labels) {
+  int num_bins;
+  ros::param::param("num_bins", num_bins, 2);
+  cv::Mat rgb_reduced;
+  ReduceRgb(rgb, near_hand_mask, num_bins, rgb_reduced);
+  std::vector<std::vector<cv::Point> > clusters;
+  FindConnectedComponents(rgb_reduced, near_hand_mask, &clusters);
+
+  cv::namedWindow("Reduced RGB");
+  cv::imshow("Reduced RGB", rgb_reduced);
+
+  // Number of hot pixels in each cluster.
+  int thermal_counts[clusters.size()];
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    thermal_counts[i] = 0;
+  }
+
+  for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
+    const std::vector<cv::Point>& cluster = clusters[cluster_i];
+    for (size_t pt_i = 0; pt_i < cluster.size(); ++pt_i) {
+      const cv::Point& pt = cluster[pt_i];
+      int pixel_index = pt.y * rgb.cols + pt.x;
+      uint16_t thermal_val =
+          reinterpret_cast<uint16_t*>(thermal_projected.data)[pixel_index];
+      if (thermal_val > thermal_threshold) {
+        thermal_counts[cluster_i] += 1;
+      }
+    }
+  }
+
+  cv::Mat labels_mat = labels.getMat();
+  labels_mat = cv::Scalar(0);
+
+  float percent_hot_threshold;
+  ros::param::param("percent_hot_threshold", percent_hot_threshold, 0.75f);
+  for (size_t cluster_i = 0; cluster_i < clusters.size(); ++cluster_i) {
+    const std::vector<cv::Point>& cluster = clusters[cluster_i];
+    float thermal_percent =
+        static_cast<float>(thermal_counts[cluster_i]) / cluster.size();
+    if (thermal_percent > percent_hot_threshold) {
+      for (size_t pt_i = 0; pt_i < cluster.size(); ++pt_i) {
+        const cv::Point& pt = cluster[pt_i];
+        int pixel_index = pt.y * rgb.cols + pt.x;
+        labels_mat.data[pixel_index] = 1;
+      }
+    }
+  }
 }
 
 void ReduceRgb(cv::Mat rgb, cv::Mat near_hand_mask, int num_bins,
