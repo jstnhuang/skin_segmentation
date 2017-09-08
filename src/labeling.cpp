@@ -276,28 +276,28 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
                      near_hand_mask, thermal_threshold, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
-    cv::Mat blurred_rgb;
-    double bilateral_sigma;
-    ros::param::param("bilateral_sigma", bilateral_sigma, 50.0);
-    cv::bilateralFilter(rgb_bridge->image, blurred_rgb, 5, bilateral_sigma,
-                        bilateral_sigma);
+    // cv::Mat blurred_rgb;
+    // double bilateral_sigma;
+    // ros::param::param("bilateral_sigma", bilateral_sigma, 50.0);
+    // cv::bilateralFilter(rgb_bridge->image, blurred_rgb, 5, bilateral_sigma,
+    //                    bilateral_sigma);
 
-    if (debug_) {
-      cv::namedWindow("Filtered RGB hands");
-      cv::Mat rgb_hands2(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(0, 0, 0));
-      blurred_rgb.copyTo(rgb_hands2, near_hand_mask);
-      cv::imshow("Filtered RGB hands", rgb_hands2);
-    }
+    // if (debug_) {
+    //  cv::namedWindow("Filtered RGB hands");
+    //  cv::Mat rgb_hands2(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(0, 0, 0));
+    //  blurred_rgb.copyTo(rgb_hands2, near_hand_mask);
+    //  cv::imshow("Filtered RGB hands", rgb_hands2);
+    //}
 
-    cv::Mat eroded_mask;
-    cv::erode(near_hand_mask, eroded_mask, cv::Mat());
+    // cv::Mat eroded_mask;
+    // cv::erode(near_hand_mask, eroded_mask, cv::Mat());
 
     int num_bins;
     ros::param::param("num_bins", num_bins, 2);
     cv::Mat rgb_reduced;
-    ReduceRgb(blurred_rgb, eroded_mask, num_bins, rgb_reduced);
+    ReduceRgb(rgb_bridge->image, near_hand_mask, num_bins, rgb_reduced);
     std::vector<std::vector<cv::Point> > clusters;
-    FindConnectedComponents(rgb_reduced, eroded_mask, &clusters);
+    FindConnectedComponents(rgb_reduced, near_hand_mask, &clusters);
 
     cv::namedWindow("Reduced RGB");
     cv::imshow("Reduced RGB", rgb_reduced);
