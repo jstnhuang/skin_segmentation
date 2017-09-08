@@ -6,6 +6,7 @@
 #include "message_filters/subscriber.h"
 #include "message_filters/sync_policies/approximate_time.h"
 #include "message_filters/synchronizer.h"
+#include "opencv2/highgui.hpp"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
@@ -35,6 +36,9 @@ int main(int argc, char** argv) {
   }
 
   skinseg::Calibration calibration;
+  cv::namedWindow("Thermal");
+  cv::setMouseCallback("Thermal", skinseg::Calibration::MouseCallback,
+                       &calibration);
 
   message_filters::Cache<Image> rgb_cache(20);
   message_filters::Cache<Image> thermal_cache(20);

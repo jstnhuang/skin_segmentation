@@ -1,6 +1,11 @@
 // Utility for saving RGB/Thermal frames for calibration purposes.
 // They are saved to a bag file.
 
+// Because it is difficult to find chessboard corners in the thermal image,
+// especially at greater distances, this utility just captures images
+// periodically without finding the chessboard corners. Instead, the user uses
+// a separate utility to manually annotate the corners in the thermal image.
+
 #include <iostream>
 #include <string>
 
@@ -34,6 +39,8 @@ class CalibrationCapture {
   ros::Publisher rgb_pub_;
   ros::Publisher thermal_pub_;
   rosbag::Bag bag_;
+  ros::Time latest_time_;
+  int num_images_;
 };
 
 CalibrationCapture::CalibrationCapture(const std::string& bag_path)
@@ -43,7 +50,9 @@ CalibrationCapture::CalibrationCapture(const std::string& bag_path)
       nh_(),
       rgb_pub_(nh_.advertise<Image>("rgb_chessboard", 1)),
       thermal_pub_(nh_.advertise<Image>("thermal_chessboard", 1)),
-      bag_() {}
+      bag_(),
+      latest_time_(0),
+      num_images_(0) {}
 
 void CalibrationCapture::Callback(const Image::ConstPtr& rgb_msg,
                                   const Image::ConstPtr& thermal_msg) {
@@ -56,45 +65,38 @@ void CalibrationCapture::Callback(const Image::ConstPtr& rgb_msg,
     return;
   }
 
-  // Find corners
-  const cv::Size kSize(7, 7);
-
-  cv_bridge::CvImageConstPtr cv_thermal = cv_bridge::toCvShare(thermal_msg);
-  double contrast_factor;
-  ros::param::param("contrast_factor", contrast_factor, 1.2);
-  cv::Mat thermal_high_contrast = cv_thermal->image * contrast_factor;
-  Corners thermal_corners;
-  bool thermal_found =
-      cv::findChessboardCorners(thermal_high_contrast, kSize, thermal_corners);
-  cv::Mat thermal_viz = thermal_high_contrast.clone();
-  cv::drawChessboardCorners(thermal_viz, kSize, thermal_corners, thermal_found);
-  cv_bridge::CvImage thermal_cv_out(cv_thermal->header, cv_thermal->encoding,
-                                    thermal_viz);
-  thermal_pub_.publish(thermal_cv_out.toImageMsg());
-  // Don't waste time searching for RGB corners.
-  if (!thermal_found) {
+  ros::Time current_time = rgb_msg->header.stamp;
+  // Wait at least 2 seconds between image captures.
+  if (current_time < latest_time_ + ros::Duration(2) &&
+      !latest_time_.isZero()) {
     return;
   }
 
-  cv_bridge::CvImageConstPtr cv_rgb = cv_bridge::toCvShare(rgb_msg);
+  thermal_pub_.publish(thermal_msg);
+
+  // Find corners
+  const cv::Size kSize(7, 7);
+  cv_bridge::CvImageConstPtr cv_rgb = cv_bridge::toCvCopy(rgb_msg);
   Corners rgb_corners;
   bool rgb_found = cv::findChessboardCorners(cv_rgb->image, kSize, rgb_corners);
   cv_bridge::CvImage rgb_cv_out = *cv_rgb;
   cv::drawChessboardCorners(rgb_cv_out.image, kSize, rgb_corners, rgb_found);
   rgb_pub_.publish(rgb_cv_out.toImageMsg());
 
-  if (thermal_found && rgb_found) {
+  if (rgb_found) {
     try {
       bag_.open(bag_path_, rosbag::bagmode::Append);
     } catch (const rosbag::BagException& e) {
       bag_.close();
       bag_.open(bag_path_, rosbag::bagmode::Write);
     }
-    bag_.write("/camera/rgb/image_rect_color", rgb_msg->header.stamp, rgb_msg);
-    bag_.write("/ici/ir_camera/image_normalized_rgb", rgb_msg->header.stamp,
+    bag_.write("/camera/rgb/image_rect_color", current_time, rgb_msg);
+    bag_.write("/ici/ir_camera/image_normalized_rgb", current_time,
                thermal_msg);
 
-    ROS_INFO("Saved image");
+    ++num_images_;
+    ROS_INFO("Saved %d images", num_images_);
+    latest_time_ = rgb_msg->header.stamp;
     bag_.close();
   }
 }
@@ -118,8 +120,6 @@ void CalibrationCapture::Save() {
 
 int main(int argc, char** argv) {
   ros::init(argc, argv, "calibration_capture");
-  // ros::AsyncSpinner spinner(2);
-  // spinner.start();
   ros::NodeHandle nh;
   if (argc < 2) {
     std::cout << "Usage: calibration_capture path/to/bag.bag" << std::endl;
@@ -127,10 +127,10 @@ int main(int argc, char** argv) {
   }
   skinseg::CalibrationCapture capture(argv[1]);
   message_filters::Subscriber<Image> rgb_sub(nh, "/camera/rgb/image_rect_color",
-                                             1);
+                                             10);
   message_filters::Subscriber<Image> thermal_sub(
-      nh, "/ici/ir_camera/image_normalized_rgb", 1);
-  message_filters::Synchronizer<MyPolicy> sync(MyPolicy(2), rgb_sub,
+      nh, "/ici/ir_camera/image_normalized_rgb", 10);
+  message_filters::Synchronizer<MyPolicy> sync(MyPolicy(10), rgb_sub,
                                                thermal_sub);
   sync.registerCallback(&skinseg::CalibrationCapture::Callback, &capture);
   ros::spin();

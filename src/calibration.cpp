@@ -1,6 +1,7 @@
 #include "skin_segmentation/calibration.h"
 
 #include <math.h>
+#include <iostream>
 
 #include "Eigen/Dense"
 #include "cv_bridge/cv_bridge.h"
@@ -22,14 +23,6 @@ void Calibration::AddImagePair(const Image::ConstPtr& rgb_msg,
                                const Image::ConstPtr& thermal_msg) {
   const cv::Size kSize(7, 7);
 
-  cv_bridge::CvImageConstPtr cv_thermal = cv_bridge::toCvShare(thermal_msg);
-  Corners thermal_corners;
-  bool thermal_found =
-      cv::findChessboardCorners(cv_thermal->image, kSize, thermal_corners);
-  if (!thermal_found) {
-    ROS_ERROR("Failed to find chessboard in thermal image");
-  }
-
   cv_bridge::CvImageConstPtr cv_rgb =
       cv_bridge::toCvShare(rgb_msg, sensor_msgs::image_encodings::BGR8);
   Corners rgb_corners;
@@ -42,23 +35,98 @@ void Calibration::AddImagePair(const Image::ConstPtr& rgb_msg,
   cv::drawChessboardCorners(rgb_viz, kSize, rgb_corners, rgb_found);
   cv::namedWindow("RGB");
   cv::imshow("RGB", rgb_viz);
-  cv::Mat thermal_viz = cv_thermal->image.clone();
-  cv::drawChessboardCorners(thermal_viz, kSize, thermal_corners, thermal_found);
-  cv::namedWindow("Thermal");
-  cv::imshow("Thermal", thermal_viz);
-  cv::waitKey();
 
-  if (!rgb_found || !thermal_found) {
+  if (!rgb_found) {
+    std::cout << "Chessboard not found in RGB, press any key to skip"
+              << std::endl;
+    cv::waitKey();
+    return;
+  }
+
+  cv_bridge::CvImageConstPtr cv_thermal = cv_bridge::toCvCopy(thermal_msg);
+  cv::Mat thermal;
+  cv::cvtColor(cv_thermal->image, thermal, CV_RGB2GRAY);
+  cv::namedWindow("Thermal");
+  cv::imshow("Thermal", thermal);
+
+  context_.thermal_orig = thermal;
+  context_.corners.clear();
+
+  char command = ' ';
+  while (command != 'd' && command != 's') {
+    std::cout << "Commands:" << std::endl;
+    std::cout << "t: Try to find chessboard corners automatically" << std::endl;
+    std::cout << "c: Clear corners" << std::endl;
+    std::cout << "x: Delete last manually labeled corner" << std::endl;
+    std::cout << "s: Skip this image pair" << std::endl;
+    std::cout << "d: Save corners and move to next image" << std::endl;
+
+    command = (char)cv::waitKey(0);
+
+    bool thermal_found = false;
+    if (command == 't') {
+      Corners rgb_corners;
+      thermal_found =
+          cv::findChessboardCorners(thermal, kSize, context_.corners);
+      cornerSubPix(
+          context_.thermal_orig, context_.corners, cv::Size(8, 8),
+          cv::Size(-1, -1),
+          cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+      if (!thermal_found) {
+        ROS_ERROR("Failed to find chessboard in thermal image.");
+      }
+    } else if (command == 'c') {
+      context_.corners.clear();
+    } else if (command == 'x') {
+      context_.corners.pop_back();
+    }
+
+    if (command != 't') {
+      cv::Mat thermal_viz = cv_thermal->image.clone();
+      cv::drawChessboardCorners(thermal_viz, kSize, context_.corners,
+                                thermal_found);
+      cv::imshow("Thermal", thermal_viz);
+    }
+
+    if (command == 'd' && context_.corners.size() != 49) {
+      std::cout << "Cannot commit, not all the corners have been labeled."
+                << std::endl;
+      continue;
+    }
+  }
+
+  if (command == 's') {
     return;
   }
 
   Corners rgb_fixed;
   ReorderChessCorners(rgb_corners, kSize, &rgb_fixed);
   Corners thermal_fixed;
-  ReorderChessCorners(thermal_corners, kSize, &thermal_fixed);
+  ReorderChessCorners(context_.corners, kSize, &thermal_fixed);
 
   rgb_corners_.push_back(rgb_fixed);
   thermal_corners_.push_back(thermal_fixed);
+
+  Run();
+}
+
+void Calibration::MouseCallback(int event, int x, int y, int flags,
+                                void* data) {
+  if (event != cv::EVENT_LBUTTONDOWN) {
+    return;
+  }
+  ROS_INFO("Clicked x: %d, y: %d", x, y);
+  Calibration* calib = static_cast<Calibration*>(data);
+  ThermalLabelingContext* context = &calib->context_;
+  context->corners.push_back(cv::Vec2f(x, y));
+  cornerSubPix(context->thermal_orig, context->corners, cv::Size(5, 5),
+               cv::Size(-1, -1),
+               cv::TermCriteria(CV_TERMCRIT_EPS + CV_TERMCRIT_ITER, 30, 0.1));
+  cv::Mat thermal_viz = context->thermal_orig.clone();
+  bool thermal_found = context->corners.size() == 49;
+  cv::drawChessboardCorners(thermal_viz, cv::Size(7, 7), context->corners,
+                            thermal_found);
+  cv::imshow("Thermal", thermal_viz);
 }
 
 void Calibration::Run() {
