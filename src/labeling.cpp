@@ -267,6 +267,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithReducedColorComponents(rgb_bridge->image, near_hand_mask,
                                     thermal_projected, thermal_threshold,
                                     labels);
+  } else if (labeling_algorithm_ == kFloodFill) {
+    LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
+                       thermal_threshold, labels);
+  } else {
+    ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
+                       labeling_algorithm_.c_str());
   }
 
   delete[] points;
@@ -670,12 +676,12 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
 
   cv::Point seed_point;
   double min_val;
-  cv::minMaxLoc(mask, &min_val, NULL, &seed_point, NULL);
+  cv::minMaxLoc(mask_image, &min_val, NULL, &seed_point, NULL);
 
   while (min_val == 0) {
     cv::floodFill(rgb, mask, seed_point, unused_new_val, &unused_rect, lo_diff,
                   up_diff, flags);
-    cv::minMaxLoc(mask, &min_val, NULL, &seed_point, NULL);
+    cv::minMaxLoc(mask_image, &min_val, NULL, &seed_point, NULL);
   }
 
   cv::Mat labels_mat = labels.getMat();
