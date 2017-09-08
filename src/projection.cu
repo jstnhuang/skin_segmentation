@@ -282,7 +282,7 @@ void Projection::ProjectThermalOnRgb(const Image::ConstPtr& rgb,
     cv_bridge::CvImageConstPtr rgb_bridge =
         cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
     double alpha;
-    ros::param::param("overlay_alpha", alpha, 0.5);
+    ros::param::param("overlay_alpha", alpha, 0.8);
     cv::Mat overlay;
     cv::addWeighted(labels_color, alpha, rgb_bridge->image, 1 - alpha, 0.0,
                     overlay);
