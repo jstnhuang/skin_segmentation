@@ -655,24 +655,30 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
                         bool debug, cv::OutputArray labels) {
   // floodFill API requires the mask to have 0s in the area to fill. We use the
   // mask as follows:
-  // 0: "hot" pixel to fill
+  // 0: pixel to fill
   // 1: pixels to ignore
-  // 2: "hot" pixel that has been filled
+  // 2: pixel that has been labeled
   // The mask is 2 pixels wider and taller than the image, so image pixel (x, y)
   // corresponds to (x+1, y+1) in the mask.
+  //
+  // The flood fill is done on the RGB image, using hot pixels as seed points
   cv::Mat mask(rgb.rows + 2, rgb.cols + 2, CV_8UC1, cv::Scalar(1));
   cv::Mat mask_image = mask(cv::Rect(1, 1, rgb.cols, rgb.rows));
-  cv::Mat hot_pixels = thermal_projected > thermal_threshold;
-  cv::Mat inverted_hot_pixels = 1 - hot_pixels;  // Flip 0s and 1s
-  inverted_hot_pixels.copyTo(mask_image, near_hand_mask);
+  cv::Mat inverted_hand_mask = 1 - near_hand_mask;
+  inverted_hand_mask.copyTo(mask_image, near_hand_mask);
 
-  if (debug) {
-    // Visualize hot pixels
-    cv::namedWindow("Hot pixels");
-    cv::Mat hot_hand_pixels(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(0));
-    hot_pixels.copyTo(hot_hand_pixels, near_hand_mask);
-    cv::imshow("Hot pixels", hot_pixels * 255);
-  }
+  cv::Mat thermal_hands(rgb.rows, rgb.cols, CV_16UC1, cv::Scalar(0));
+  thermal_projected.copyTo(thermal_hands, near_hand_mask);
+
+  // cv::Mat hot_pixels = thermal_projected > thermal_threshold;
+  // if (debug) {
+  //  // Visualize hot pixels
+  //  cv::namedWindow("Hot pixels");
+  //  cv::Mat hot_hand_pixels(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(100));
+  //  cv::Mat scaled = hot_pixels * 255;
+  //  scaled.copyTo(hot_hand_pixels, near_hand_mask);
+  //  cv::imshow("Hot pixels", hot_hand_pixels);
+  //}
 
   cv::Scalar unused_new_val(0, 0, 0);
   cv::Rect unused_rect;
@@ -680,16 +686,28 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   ros::param::param("color_diff", color_diff, 60.0f);
   cv::Scalar lo_diff(color_diff, color_diff, color_diff);
   cv::Scalar up_diff(color_diff, color_diff, color_diff);
-  int flags = 4 | cv::FLOODFILL_MASK_ONLY | (2 << 8);
+  int flags =
+      4 | cv::FLOODFILL_FIXED_RANGE | cv::FLOODFILL_MASK_ONLY | (2 << 8);
 
+  cv::Mat thermal_mask = near_hand_mask.clone();
   cv::Point seed_point;
-  double min_val;
-  cv::minMaxLoc(mask_image, &min_val, NULL, &seed_point, NULL);
-
-  while (min_val == 0) {
+  cv::Mat zeros(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(0));
+  char c = ' ';
+  while (c != 'd') {
+    double max_val;
+    cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
+                  thermal_mask);
     cv::floodFill(rgb, mask, seed_point, unused_new_val, &unused_rect, lo_diff,
                   up_diff, flags);
-    cv::minMaxLoc(mask_image, &min_val, NULL, &seed_point, NULL);
+    // Suppress thermal image pixels corresponding to pixels that were flood
+    // filled.
+    zeros.copyTo(thermal_mask, mask_image == 2);
+    if (debug) {
+      cv::namedWindow("Flood fill mask");
+      cv::imshow("Flood fill mask", mask * 127);
+    }
+
+    c = (char)cv::waitKey();
   }
 
   cv::Mat labels_mat = labels.getMat();
