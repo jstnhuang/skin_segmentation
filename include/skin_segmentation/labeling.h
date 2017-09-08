@@ -60,8 +60,6 @@ class Labeling {
 
   CameraData camera_data_;
   sensor_msgs::CameraInfo rgbd_info_;
-  ros::Publisher thermal_depth_skew_pub_;
-  ros::Publisher rgb_depth_skew_pub_;
 };
 
 void ComputeHandMask(float4* points, int height, int width,

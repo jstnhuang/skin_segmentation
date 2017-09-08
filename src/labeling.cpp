@@ -47,11 +47,7 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 1)),
       labeling_algorithm_(kThermal),
       camera_data_(),
-      rgbd_info_(),
-      thermal_depth_skew_pub_(
-          nh_.advertise<std_msgs::Float64>("thermal_depth_skew", 1)),
-      rgb_depth_skew_pub_(
-          nh_.advertise<std_msgs::Float64>("rgb_depth_skew", 1)) {
+      rgbd_info_() {
   projection_.GetCameraData(&camera_data_);
   projection_.GetRgbdCameraInfo(&rgbd_info_);
 }
@@ -234,19 +230,11 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   ROS_INFO("Thermal-depth: %f, RGB-depth: %f, Thermal-RGB: %f",
            thermal_depth_skew, rgb_depth_skew, thermal_rgb_skew);
   double max_time_skew;
-  ros::param::param("max_time_skew", max_time_skew, 0.01);
+  ros::param::param("max_time_skew", max_time_skew, 1.00);
   if (fabs(thermal_depth_skew) > max_time_skew ||
       fabs(rgb_depth_skew) > max_time_skew ||
       fabs(thermal_rgb_skew) > max_time_skew) {
     return;
-  }
-  if (debug_) {
-    std_msgs::Float64 td_skew;
-    td_skew.data = (thermal->header.stamp - depth->header.stamp).toSec();
-    thermal_depth_skew_pub_.publish(td_skew);
-    std_msgs::Float64 rd_skew;
-    rd_skew.data = (rgb->header.stamp - depth->header.stamp).toSec();
-    rgb_depth_skew_pub_.publish(rd_skew);
   }
 
   if (debug_) {
@@ -276,22 +264,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
                      near_hand_mask, thermal_threshold, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
-    // cv::Mat blurred_rgb;
-    // double bilateral_sigma;
-    // ros::param::param("bilateral_sigma", bilateral_sigma, 50.0);
-    // cv::bilateralFilter(rgb_bridge->image, blurred_rgb, 5, bilateral_sigma,
-    //                    bilateral_sigma);
-
-    // if (debug_) {
-    //  cv::namedWindow("Filtered RGB hands");
-    //  cv::Mat rgb_hands2(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(0, 0, 0));
-    //  blurred_rgb.copyTo(rgb_hands2, near_hand_mask);
-    //  cv::imshow("Filtered RGB hands", rgb_hands2);
-    //}
-
-    // cv::Mat eroded_mask;
-    // cv::erode(near_hand_mask, eroded_mask, cv::Mat());
-
     int num_bins;
     ros::param::param("num_bins", num_bins, 2);
     cv::Mat rgb_reduced;
@@ -336,11 +308,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       }
     }
   }
-
-  // if (debug_) {
-  //  cv::namedWindow("Labels");
-  //  cv::imshow("Labels", labels * 255);
-  //}
 
   delete[] points;
 
