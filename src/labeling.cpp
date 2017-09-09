@@ -30,6 +30,51 @@
 using sensor_msgs::Image;
 
 namespace skinseg {
+double otsu_8u_with_mask(const cv::Mat& src, const cv::Mat& mask) {
+  const int N = 256;
+  int M = 0;
+  int i, j, h[N] = {0};
+  for (i = 0; i < src.rows; i++) {
+    const uchar* psrc = src.ptr(i);
+    const uchar* pmask = mask.ptr(i);
+    for (j = 0; j < src.cols; j++) {
+      if (pmask[j]) {
+        h[psrc[j]]++;
+        ++M;
+      }
+    }
+  }
+
+  double mu = 0, scale = 1. / (M);
+  for (i = 0; i < N; i++) mu += i * (double)h[i];
+
+  mu *= scale;
+  double mu1 = 0, q1 = 0;
+  double max_sigma = 0, max_val = 0;
+
+  for (i = 0; i < N; i++) {
+    double p_i, q2, mu2, sigma;
+
+    p_i = h[i] * scale;
+    mu1 *= q1;
+    q1 += p_i;
+    q2 = 1. - q1;
+
+    if (std::min(q1, q2) < FLT_EPSILON || std::max(q1, q2) > 1. - FLT_EPSILON)
+      continue;
+
+    mu1 = (mu1 + i * p_i) / q1;
+    mu2 = (mu - q1 * mu1) / q2;
+    sigma = q1 * q2 * (mu1 - mu2) * (mu1 - mu2);
+    if (sigma > max_sigma) {
+      max_sigma = sigma;
+      max_val = i;
+    }
+  }
+
+  return max_val;
+}
+
 Labeling::Labeling(const Projection& projection, Nerf* nerf,
                    rosbag::Bag* output_bag)
     : projection_(projection),
@@ -47,7 +92,8 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 1)),
       labeling_algorithm_(kThermal),
       camera_data_(),
-      rgbd_info_() {
+      rgbd_info_(),
+      thermal_threshold_(0) {
   projection_.GetCameraData(&camera_data_);
   projection_.GetRgbdCameraInfo(&rgbd_info_);
 }
@@ -99,11 +145,14 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   const int rgb_rows = rgb->height;
   const int rgb_cols = rgb->width;
 
+  // Find a good thermal threshold for this sequence.
+  // Assume that the person is no farther than kMaxDepth meters away. We crop
+  // the image to just the person and find a binarization that separates their
+  // skin temperature from their clothing temperature.
   cv::Mat thermal_projected;
   float4* points = new float4[rgb_cols * rgb_rows];
   projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected,
                                   points);
-
   // Get hand poses
   const nerf::DualQuaternion* joint_poses =
       nerf_->model_instance->getHostJointPose();
@@ -130,6 +179,28 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   pcl::PointIndices::Ptr indices(new pcl::PointIndices());
   ComputeHandMask(points, rgb_rows, rgb_cols, camera_data_, l_matrix, r_matrix,
                   near_hand_mask.data);
+
+  // Try to find a threshold that separates skin from clothing.
+  if (thermal_threshold_ == 0) {
+    cv::Mat person(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
+    thermal_projected.copyTo(person, near_hand_mask);
+
+    cv::Mat definite_hand_mask = person > 3200;
+
+    cv::Mat person_8u(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
+    person.convertTo(person_8u, CV_8UC1, 1 / 255.0);
+    thermal_threshold_ = 255 * otsu_8u_with_mask(person_8u, definite_hand_mask);
+    if (thermal_threshold_ > 0) {
+      ROS_INFO("Threshold: %f", thermal_threshold_);
+    } else {
+      ROS_ERROR("Unable to find good threshold, skipping");
+      return;
+    }
+
+    cv::Mat otsu_mask = thermal_projected > thermal_threshold_;
+    cv::namedWindow("Otsu mask");
+    cv::imshow("Otsu mask", otsu_mask * 255);
+  }
 
   cv_bridge::CvImageConstPtr rgb_bridge =
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
@@ -253,23 +324,20 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   }
 
   // Labeling
-  double thermal_threshold;
-  ros::param::param("thermal_threshold", thermal_threshold, 3650.0);
-
   cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   if (labeling_algorithm_ == kThermal) {
     LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
-                     thermal_threshold, labels);
+                     thermal_threshold_, labels);
   } else if (labeling_algorithm_ == kGrabCut) {
     LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
-                     near_hand_mask, thermal_threshold, labels);
+                     near_hand_mask, thermal_threshold_, labels);
   } else if (labeling_algorithm_ == kColorHistogram) {
     LabelWithReducedColorComponents(rgb_bridge->image, near_hand_mask,
-                                    thermal_projected, thermal_threshold,
+                                    thermal_projected, thermal_threshold_,
                                     labels);
   } else if (labeling_algorithm_ == kFloodFill) {
     LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
-                       thermal_threshold, debug_, labels);
+                       thermal_threshold_, debug_, labels);
   } else {
     ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
                        labeling_algorithm_.c_str());
@@ -672,16 +740,16 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
 
   cv::Mat thermal_hands(rgb.rows, rgb.cols, CV_16UC1, cv::Scalar(0));
   thermal_projected.copyTo(thermal_hands, near_hand_mask);
+  cv::Mat hot_hand_mask = thermal_hands > thermal_threshold;
 
-  // cv::Mat hot_pixels = thermal_projected > thermal_threshold;
-  // if (debug) {
-  //  // Visualize hot pixels
-  //  cv::namedWindow("Hot pixels");
-  //  cv::Mat hot_hand_pixels(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(100));
-  //  cv::Mat scaled = hot_pixels * 255;
-  //  scaled.copyTo(hot_hand_pixels, near_hand_mask);
-  //  cv::imshow("Hot pixels", hot_hand_pixels);
-  //}
+  if (debug) {
+    // Visualize hot pixels
+    cv::namedWindow("Hot pixels");
+    cv::Mat hot_hand_viz(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(100));
+    hot_hand_viz.setTo(0, near_hand_mask);
+    hot_hand_viz.setTo(255, hot_hand_mask);
+    cv::imshow("Hot pixels", hot_hand_viz);
+  }
 
   cv::Scalar unused_new_val(0, 0, 0);
   cv::Rect unused_rect;
@@ -692,20 +760,21 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   int flags =
       4 | cv::FLOODFILL_FIXED_RANGE | cv::FLOODFILL_MASK_ONLY | (2 << 8);
 
-  cv::Mat thermal_mask = near_hand_mask.clone();
-  cv::Point seed_point;
-  cv::Mat zeros(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(0));
+  // Build mask of hot hand pixels
+  cv::Mat thermal_mask(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(0));
+  thermal_mask.setTo(1, hot_hand_mask);
 
   double max_val;
-  cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
-                thermal_mask);
+  cv::Point seed_point;
+  cv::minMaxLoc(thermal_hands, NULL, &max_val, NULL, &seed_point,
+                hot_hand_mask);
   while (max_val > thermal_threshold) {
     cv::floodFill(rgb_blurred, mask, seed_point, unused_new_val, &unused_rect,
                   lo_diff, up_diff, flags);
     // Suppress thermal image pixels corresponding to pixels that were flood
     // filled.
-    zeros.copyTo(thermal_mask, mask_image == 2);
-    cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
+    thermal_mask.setTo(0, mask_image == 2);
+    cv::minMaxLoc(thermal_hands, NULL, &max_val, NULL, &seed_point,
                   thermal_mask);
   }
   if (debug) {

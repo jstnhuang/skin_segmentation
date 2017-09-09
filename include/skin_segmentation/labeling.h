@@ -61,6 +61,8 @@ class Labeling {
 
   CameraData camera_data_;
   sensor_msgs::CameraInfo rgbd_info_;
+
+  double thermal_threshold_;
 };
 
 void ComputeHandMask(float4* points, int height, int width,
