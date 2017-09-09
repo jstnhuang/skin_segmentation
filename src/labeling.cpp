@@ -740,7 +740,11 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
 
   cv::Mat thermal_hands(rgb.rows, rgb.cols, CV_16UC1, cv::Scalar(0));
   thermal_projected.copyTo(thermal_hands, near_hand_mask);
-  cv::Mat hot_hand_mask = thermal_hands > thermal_threshold;
+  cv::Mat hot_hand_mask_full = thermal_hands > thermal_threshold;
+  cv::Mat hot_hand_mask;
+  cv::Mat erosion_element =
+      cv::getStructuringElement(cv::MORPH_ELLIPSE, cv::Size(5, 5));
+  cv::erode(hot_hand_mask_full, hot_hand_mask, erosion_element);
 
   if (debug) {
     // Visualize hot pixels
