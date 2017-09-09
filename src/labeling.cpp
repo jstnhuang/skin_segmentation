@@ -692,22 +692,22 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   cv::Mat thermal_mask = near_hand_mask.clone();
   cv::Point seed_point;
   cv::Mat zeros(rgb.rows, rgb.cols, CV_8UC1, cv::Scalar(0));
-  char c = ' ';
-  while (c != 'd') {
-    double max_val;
-    cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
-                  thermal_mask);
+
+  double max_val;
+  cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
+                thermal_mask);
+  while (max_val > thermal_threshold) {
     cv::floodFill(rgb, mask, seed_point, unused_new_val, &unused_rect, lo_diff,
                   up_diff, flags);
     // Suppress thermal image pixels corresponding to pixels that were flood
     // filled.
     zeros.copyTo(thermal_mask, mask_image == 2);
-    if (debug) {
-      cv::namedWindow("Flood fill mask");
-      cv::imshow("Flood fill mask", mask * 127);
-    }
-
-    c = (char)cv::waitKey();
+    cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
+                  thermal_mask);
+  }
+  if (debug) {
+    cv::namedWindow("Flood fill mask");
+    cv::imshow("Flood fill mask", mask * 127);
   }
 
   cv::Mat labels_mat = labels.getMat();
