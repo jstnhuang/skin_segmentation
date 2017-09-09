@@ -736,7 +736,15 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   inverted_hand_mask.copyTo(mask_image, near_hand_mask);
 
   cv::Mat rgb_blurred;
-  cv::GaussianBlur(rgb, rgb_blurred, cv::Size(5, 5), 1);
+  double bilateral_sigma;
+  ros::param::param("bilateral_sigma", bilateral_sigma, 100.0);
+  cv::bilateralFilter(rgb, rgb_blurred, 5, bilateral_sigma, bilateral_sigma);
+
+  if (debug) {
+    cv::Mat rgb_hands;
+    rgb_blurred.copyTo(rgb_hands, near_hand_mask);
+    cv::imshow("RGB hands", rgb_hands);
+  }
 
   cv::Mat thermal_hands(rgb.rows, rgb.cols, CV_16UC1, cv::Scalar(0));
   thermal_projected.copyTo(thermal_hands, near_hand_mask);
