@@ -323,6 +323,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     cv::imshow("Thermal hands", thermal_normalized);
   }
 
+  double thermal_threshold;
+  ros::param::param("thermal_threshold", thermal_threshold, 0.0);
+  if (thermal_threshold != 0) {
+    thermal_threshold_ = thermal_threshold;
+  }
+
   // Labeling
   cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   if (labeling_algorithm_ == kThermal) {
