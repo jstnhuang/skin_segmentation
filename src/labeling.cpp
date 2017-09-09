@@ -667,6 +667,9 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   cv::Mat inverted_hand_mask = 1 - near_hand_mask;
   inverted_hand_mask.copyTo(mask_image, near_hand_mask);
 
+  cv::Mat rgb_blurred;
+  cv::GaussianBlur(rgb, rgb_blurred, cv::Size(5, 5), 1);
+
   cv::Mat thermal_hands(rgb.rows, rgb.cols, CV_16UC1, cv::Scalar(0));
   thermal_projected.copyTo(thermal_hands, near_hand_mask);
 
@@ -697,8 +700,8 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
   cv::minMaxLoc(thermal_projected, NULL, &max_val, NULL, &seed_point,
                 thermal_mask);
   while (max_val > thermal_threshold) {
-    cv::floodFill(rgb, mask, seed_point, unused_new_val, &unused_rect, lo_diff,
-                  up_diff, flags);
+    cv::floodFill(rgb_blurred, mask, seed_point, unused_new_val, &unused_rect,
+                  lo_diff, up_diff, flags);
     // Suppress thermal image pixels corresponding to pixels that were flood
     // filled.
     zeros.copyTo(thermal_mask, mask_image == 2);
