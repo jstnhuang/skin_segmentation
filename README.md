@@ -15,7 +15,9 @@ During data collection:
 - Ensure that your hands do not go outside the boundary of the thermal camera image
 - Do not hold any large objects, which will cause the skeleton tracker to lose track
 - Do not approach so close to the camera that you lose depth information
-- If possible, warm your hands prior to starting (e.g., by wearing gloves)
+- If possible, warm your hands prior to starting (e.g., by wearing gloves). This is especially important if you move your hands close to your body.
+- Do not move your hands next to other exposed skin areas (arms, face).
+- Avoid holding objects between the camera and exposed skin areas (arms, face), as bad calibration can cause hot points behind objects to project onto the edges of objects.
 
 ## Thermal camera calibration procedure
 - [ ] Plug in the thermal camera
