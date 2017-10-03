@@ -77,10 +77,11 @@ double otsu_8u_with_mask(const cv::Mat& src, const cv::Mat& mask) {
 }
 
 Labeling::Labeling(const Projection& projection, Nerf* nerf,
-                   rosbag::Bag* output_bag)
+                   const std::string& output_dir, rosbag::Bag* output_bag)
     : projection_(projection),
       nerf_(nerf),
       output_bag_(output_bag),
+      output_dir_(output_dir),
       debug_(false),
       nh_(),
       skeleton_pub_(
@@ -95,9 +96,14 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       labeling_algorithm_(kThermal),
       camera_data_(),
       rgbd_info_(),
-      thermal_threshold_(0) {
+      thermal_threshold_(0),
+      frame_count_(0) {
   projection_.GetCameraData(&camera_data_);
   projection_.GetRgbdCameraInfo(&rgbd_info_);
+
+  if (output_dir_[output_dir_.size() - 1] != '/') {
+    output_dir_ += "/";
+  }
 }
 
 void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
@@ -402,12 +408,27 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   sensor_msgs::Image depth_out = *depth;
   depth_out.header.stamp = rgb->header.stamp;
 
-  output_bag_->write(kRgbTopic, rgb->header.stamp, rgb);
-  output_bag_->write(kDepthTopic, rgb->header.stamp, depth_out);
-  output_bag_->write(kLabelsTopic, rgb->header.stamp,
-                     labels_bridge.toImageMsg());
-  output_bag_->write(kLabelOverlayTopic, rgb->header.stamp,
-                     overlay_bridge.toImageMsg());
+  if (output_bag_ != NULL) {
+    output_bag_->write(kRgbTopic, rgb->header.stamp, rgb);
+    output_bag_->write(kDepthTopic, rgb->header.stamp, depth_out);
+    output_bag_->write(kLabelsTopic, rgb->header.stamp,
+                       labels_bridge.toImageMsg());
+    output_bag_->write(kLabelOverlayTopic, rgb->header.stamp,
+                       overlay_bridge.toImageMsg());
+  }
+  if (output_dir_ != "") {
+    std::stringstream ss;
+    ss << output_dir_ << std::right << std::setfill('0') << std::setw(5)
+       << frame_count_ << "-";
+    std::string base(ss.str());
+    std::string color_name = base + "color.png";
+    std::string depth_name = base + "depth.png";
+    std::string labels_name = base + "labels.png";
+    cv::imwrite(color_name, rgb_bridge->image);
+    cv::imwrite(depth_name, depth_bridge->image);
+    cv::imwrite(labels_name, labels_bridge.image * 255);
+    ++frame_count_;
+  }
 
   cudaDeviceSynchronize();
 

@@ -8,6 +8,7 @@
 
 #undef Success  // Evil workaround. nerf includes glx, which defines this again
 #include "Eigen/Dense"
+#include "boost/algorithm/string.hpp"
 #include "camera_calibration_parsers/parse.h"
 #include "message_filters/cache.h"
 #include "message_filters/subscriber.h"
@@ -43,6 +44,7 @@ int main(int argc, char** argv) {
   if (argc < 3) {
     std::cout
         << "Usage: rosrun skin_segmentation label_data INPUT.bag OUTPUT.bag"
+        << "Usage: rosrun skin_segmentation label_data INPUT.bag OUTPUT_DIR"
         << std::endl;
     return 1;
   }
@@ -71,8 +73,6 @@ int main(int argc, char** argv) {
 
   skinseg::Projection projection(rgb_info, thermal_info, rgb_in_thermal);
   projection.set_debug(true);
-  rosbag::Bag output_bag;
-  output_bag.open(argv[2], rosbag::bagmode::Write);
 
   // Set up nerf person tracker
   skinseg::Nerf nerf;
@@ -81,7 +81,19 @@ int main(int argc, char** argv) {
   ROS_INFO("Model scale: %f", model_scale);
   skinseg::BuildNerf(&nerf, model_scale);
   nerf.model_instance->setScale(model_scale);
-  skinseg::Labeling labeling(projection, &nerf, &output_bag);
+
+  // Set up output
+  std::string output_dir("");
+  rosbag::Bag* output_bag = NULL;
+  if (boost::algorithm::ends_with(argv[2], ".bag")) {
+    rosbag::Bag bag;
+    bag.open(argv[2], rosbag::bagmode::Write);
+    output_bag = &bag;
+  } else {
+    output_dir = argv[2];
+  }
+
+  skinseg::Labeling labeling(projection, &nerf, output_dir, output_bag);
 
   message_filters::Cache<Image> rgb_cache(100);
   message_filters::Cache<Image> depth_cache(100);
@@ -138,7 +150,9 @@ int main(int argc, char** argv) {
     }
   }
 
-  output_bag.close();
+  if (output_bag != NULL) {
+    output_bag->close();
+  }
 
   return 0;
 }

@@ -23,8 +23,12 @@ static const char kFloodFill[] = "floodfill";
 
 class Labeling {
  public:
-  // Takes in an open bag to write to.
-  Labeling(const Projection& projection, Nerf* nerf, rosbag::Bag* output_bag);
+  // Takes in an open bag to write to. If bag is NULL, then does not write to
+  // bag. If output_dir is "", does not save images to the output dir. If so, it
+  // writes images to 00000-color.png, 00000-depth.png, 00000-labels.png, etc.
+  // The counter is reset with each instance of Labeling.
+  Labeling(const Projection& projection, Nerf* nerf,
+           const std::string& output_dir, rosbag::Bag* output_bag);
 
   void Process(const sensor_msgs::Image::ConstPtr& rgb,
                const sensor_msgs::Image::ConstPtr& depth,
@@ -49,6 +53,7 @@ class Labeling {
   Projection projection_;
   Nerf* nerf_;
   rosbag::Bag* output_bag_;
+  std::string output_dir_;
   bool debug_;
   ros::NodeHandle nh_;
   ros::Publisher skeleton_pub_;
@@ -64,6 +69,7 @@ class Labeling {
   sensor_msgs::CameraInfo rgbd_info_;
 
   double thermal_threshold_;
+  int frame_count_;
 };
 
 void ComputeHandMask(float4* points, int height, int width,
