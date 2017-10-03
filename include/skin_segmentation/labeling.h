@@ -20,6 +20,7 @@ static const char kThermal[] = "thermal";
 static const char kGrabCut[] = "grabcut";
 static const char kColorHistogram[] = "colorhist";
 static const char kFloodFill[] = "floodfill";
+static const char kBox[] = "box";
 
 class Labeling {
  public:

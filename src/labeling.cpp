@@ -213,6 +213,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv_bridge::CvImageConstPtr rgb_bridge =
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
+
   if (debug_) {
     // Only for visualization, be sure to edit the real values in labeling.cu
     const float min_x = 0.07;
@@ -350,6 +351,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   } else if (labeling_algorithm_ == kFloodFill) {
     LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
                        thermal_threshold_, debug_, labels);
+  } else if (labeling_algorithm_ == kBox) {
+    // LabelWithBox(rgb_bridge->image, near_hand_mask, debug_, labels);
+    labels.setTo(cv::Scalar(255), near_hand_mask);
   } else {
     ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
                        labeling_algorithm_.c_str());
