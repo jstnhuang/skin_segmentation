@@ -2,6 +2,7 @@
 
 #include <cuda_runtime.h>
 #include <list>
+#include <sstream>
 #include <vector>
 
 #include "cv_bridge/cv_bridge.h"
@@ -90,6 +91,7 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
           nh_.advertise<sensor_msgs::CameraInfo>(kDepthInfoTopic, 1)),
       thermal_pub_(nh_.advertise<sensor_msgs::Image>(kThermalTopic, 2)),
       cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 1)),
+      overlay_pub_(nh_.advertise<sensor_msgs::Image>("overlay_rgb", 1)),
       labeling_algorithm_(kThermal),
       camera_data_(),
       rgbd_info_(),
@@ -357,11 +359,42 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   cv::Mat overlay(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(150, 150, 150));
   rgb_bridge->image.copyTo(overlay, depth_bridge->image != 0);
-  overlay.setTo(cv::Scalar(0, 0, 255), labels != 0);
-  cv::namedWindow("Label overlay");
-  cv::imshow("Label overlay", overlay);
+  overlay.setTo(cv::Scalar(0, 255, 0), labels != 0);
+
   cv_bridge::CvImage overlay_bridge(
       rgb->header, sensor_msgs::image_encodings::BGR8, overlay);
+  if (debug_) {
+    sensor_msgs::Image::Ptr msg = overlay_bridge.toImageMsg();
+    msg->header.stamp = ros::Time::now();
+    overlay_pub_.publish(msg);
+  }
+
+  std::stringstream ss;
+  ss << "Time skews: T-D: " << std::setprecision(3) << thermal_depth_skew
+     << ", C-D: " << std::setprecision(3) << rgb_depth_skew
+     << ", T-C: " << std::setprecision(3) << thermal_rgb_skew;
+  std::string text(ss.str());
+  float abs_td_skew = fabs(thermal_depth_skew);
+  float abs_rd_skew = fabs(rgb_depth_skew);
+  float abs_tr_skew = fabs(thermal_rgb_skew);
+  if (abs_td_skew < 0.005 && abs_rd_skew < 0.005 && abs_tr_skew < 0.005) {
+    cv::Scalar green(0, 255, 0);
+    cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                green);
+  } else if (abs_td_skew < 0.01 && abs_rd_skew < 0.01 && abs_tr_skew < 0.01) {
+    cv::Scalar yellow(0, 255, 255);
+    cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                yellow);
+  } else {
+    cv::Scalar red(0, 0, 255);
+    cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5,
+                red);
+  }
+
+  if (debug_) {
+    cv::namedWindow("Label overlay");
+    cv::imshow("Label overlay", overlay);
+  }
 
   // Even though there is some time difference, we are assuming that we have
   // done our best to temporally align the images and now assume all the images

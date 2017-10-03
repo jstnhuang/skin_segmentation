@@ -57,6 +57,7 @@ class Labeling {
   ros::Publisher depth_info_pub_;
   ros::Publisher thermal_pub_;
   ros::Publisher cloud_pub_;
+  ros::Publisher overlay_pub_;
   std::string labeling_algorithm_;
 
   CameraData camera_data_;
