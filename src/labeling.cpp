@@ -306,8 +306,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       (thermal->header.stamp - depth->header.stamp).toSec();
   double rgb_depth_skew = (rgb->header.stamp - depth->header.stamp).toSec();
   double thermal_rgb_skew = (thermal->header.stamp - rgb->header.stamp).toSec();
-  ROS_INFO("Thermal-depth: %f, RGB-depth: %f, Thermal-RGB: %f",
-           thermal_depth_skew, rgb_depth_skew, thermal_rgb_skew);
   double max_time_skew;
   ros::param::param("max_time_skew", max_time_skew, 1.00);
   if (fabs(thermal_depth_skew) > max_time_skew ||
