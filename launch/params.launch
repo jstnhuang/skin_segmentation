@@ -1,18 +1,30 @@
 <launch>
-  <arg name="isboxalg" default="false" />
+  <arg name="isboxalg" />
 
   <param name="label_data_debug" value="true" />
+  <param name="label_data_model_scale" value="0.92" />
   <param name="max_time_skew" value="1" />
   <param name="overlay_alpha" value="0.8" />
-  <param name="cluster_tolerance" value="0.03" />
-  <param name="min_cluster_size" value="10" />
 
   <group if="$(arg isboxalg)">
+    <param name="cluster_tolerance" value="0.015" />
+    <param name="min_cluster_size" value="5" />
+    <param name="wrist_dist" value="0.013" />
+
+    <!-- Box algorithm requires a bigger box -->
     <param name="min_x" value="0.075" />
     <param name="max_x" value="0.28" />
-    <param name="min_y" value="-0.15" />
-    <param name="max_y" value="0.15" />
-    <param name="min_z" value="-0.12" />
-    <param name="max_z" value="0.12" />
+    <param name="min_y" value="-0.13" />
+    <param name="max_y" value="0.18" />
+    <param name="min_z" value="-0.14" />
+    <param name="max_z" value="0.14" />
+  </group>
+  <group unless="$(arg isboxalg)">
+    <param name="min_x" value="0.075" />
+    <param name="max_x" value="0.28" />
+    <param name="min_y" value="-0.12" />
+    <param name="max_y" value="0.12" />
+    <param name="min_z" value="-0.09" />
+    <param name="max_z" value="0.09" />
   </group>
 </launch>
