@@ -50,6 +50,9 @@ class Labeling {
                         int cols, cv::Mat thermal_projected,
                         cv::Mat near_hand_mask, float thermal_threshold,
                         cv::OutputArray labels);
+  void LabelWithBox(float4* points, cv::Mat mask, int rows, int cols,
+                    Eigen::Vector3f l_hand_pos, Eigen::Vector3f r_hand_pos,
+                    bool debug, cv::OutputArray labels);
 
   Projection projection_;
   Nerf* nerf_;
@@ -73,13 +76,29 @@ class Labeling {
   int frame_count_;
 };
 
-void ComputeHandMask(float4* points, int height, int width,
+struct HandBoxCoords {
+  float min_x;
+  float max_x;
+  float min_y;
+  float max_y;
+  float min_z;
+  float max_z;
+};
+
+void ComputeHandMask(float4* points, int height, int width, const float min_x,
+                     const float max_x, const float min_y, const float max_y,
+                     const float min_z, const float max_z,
                      const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask);
 
 void MaskToIndices(uint8_t* mask, int len,
                    pcl::PointIndices::Ptr near_hand_indices);
+// Converts a list of indices in an ordered point cloud to a 2D mask.
+// This "appends" to the mask, so you can call this multiple times with the same
+// mask.
+void IndicesToMask(const std::vector<int>& indices, int rows, int cols,
+                   cv::OutputArray mask);
 
 void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud);

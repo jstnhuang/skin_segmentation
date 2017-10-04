@@ -1,8 +1,10 @@
 #include "skin_segmentation/labeling.h"
 
 #include <cuda_runtime.h>
+#include <algorithm>
 #include <list>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 #include "cv_bridge/cv_bridge.h"
@@ -10,8 +12,10 @@
 #include "opencv2/core/core.hpp"
 #include "opencv2/highgui/highgui.hpp"
 #include "pcl/PointIndices.h"
+#include "pcl/common/centroid.h"
 #include "pcl/filters/extract_indices.h"
 #include "pcl/search/kdtree.h"
+#include "pcl/segmentation/extract_clusters.h"
 #include "pcl/segmentation/region_growing_rgb.h"
 #include "pcl_conversions/pcl_conversions.h"
 #include "ros/ros.h"
@@ -85,14 +89,15 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       debug_(false),
       nh_(),
       skeleton_pub_(
-          nh_.advertise<visualization_msgs::MarkerArray>("skeleton", 1)),
-      rgb_pub_(nh_.advertise<sensor_msgs::Image>(kRgbTopic, 1)),
-      depth_pub_(nh_.advertise<sensor_msgs::Image>(kDepthTopic, 1)),
+          nh_.advertise<visualization_msgs::MarkerArray>("skeleton", 1, true)),
+      rgb_pub_(nh_.advertise<sensor_msgs::Image>(kRgbTopic, 1, true)),
+      depth_pub_(nh_.advertise<sensor_msgs::Image>(kDepthTopic, 1, true)),
       depth_info_pub_(
           nh_.advertise<sensor_msgs::CameraInfo>(kDepthInfoTopic, 1)),
       thermal_pub_(nh_.advertise<sensor_msgs::Image>(kThermalTopic, 2)),
-      cloud_pub_(nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 1)),
-      overlay_pub_(nh_.advertise<sensor_msgs::Image>("overlay_rgb", 1)),
+      cloud_pub_(
+          nh_.advertise<sensor_msgs::PointCloud2>("debug_cloud", 1, true)),
+      overlay_pub_(nh_.advertise<sensor_msgs::Image>("overlay_rgb", 1, true)),
       labeling_algorithm_(kThermal),
       camera_data_(),
       rgbd_info_(),
@@ -183,9 +188,24 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_matrix.translation() *= model_scale;
   r_matrix.translation() *= model_scale;
 
+  // Get hand poses
+  Eigen::Vector3f hand_in_forearm;
+  hand_in_forearm << (0.075 + 0.28) / 2, 0, 0;
+  Eigen::Vector3f l_hand_pos = l_matrix * hand_in_forearm;
+  Eigen::Vector3f r_hand_pos = r_matrix * hand_in_forearm;
+
+  HandBoxCoords hand_box;
+  ros::param::param("min_x", hand_box.min_x, 0.075f);
+  ros::param::param("max_x", hand_box.max_x, 0.28f);
+  ros::param::param("min_y", hand_box.min_y, -0.12f);
+  ros::param::param("max_y", hand_box.max_y, 0.12f);
+  ros::param::param("min_z", hand_box.min_z, -0.09f);
+  ros::param::param("max_z", hand_box.max_z, 0.09f);
+
   cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
-  pcl::PointIndices::Ptr indices(new pcl::PointIndices());
-  ComputeHandMask(points, rgb_rows, rgb_cols, camera_data_, l_matrix, r_matrix,
+  ComputeHandMask(points, rgb_rows, rgb_cols, hand_box.min_x, hand_box.max_x,
+                  hand_box.min_y, hand_box.max_y, hand_box.min_z,
+                  hand_box.max_z, camera_data_, l_matrix, r_matrix,
                   near_hand_mask.data);
 
   // Try to find a threshold that separates skin from clothing.
@@ -215,18 +235,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
 
   if (debug_) {
-    // Only for visualization, be sure to edit the real values in labeling.cu
-    const float min_x = 0.07;
-    const float max_x = 0.3;
-    const float min_y = -0.12;
-    const float max_y = 0.12;
-    const float min_z = -0.09;
-    const float max_z = 0.09;
-
     Eigen::Affine3f center(Eigen::Affine3f::Identity());
-    center(0, 3) = (max_x + min_x) / 2;
-    center(1, 3) = (max_y + min_y) / 2;
-    center(2, 3) = (max_z + min_z) / 2;
+    center(0, 3) = (hand_box.max_x + hand_box.min_x) / 2;
+    center(1, 3) = (hand_box.max_y + hand_box.min_y) / 2;
+    center(2, 3) = (hand_box.max_z + hand_box.min_z) / 2;
 
     visualization_msgs::MarkerArray boxes;
     visualization_msgs::Marker l_box;
@@ -236,9 +248,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     l_box.id = 0;
     l_box.color.b = 1;
     l_box.color.a = 0.3;
-    l_box.scale.x = max_x - min_x;
-    l_box.scale.y = max_y - min_y;
-    l_box.scale.z = max_z - min_z;
+    l_box.scale.x = hand_box.max_x - hand_box.min_x;
+    l_box.scale.y = hand_box.max_y - hand_box.min_y;
+    l_box.scale.z = hand_box.max_z - hand_box.min_z;
 
     Eigen::Affine3f l_pose = l_matrix * center;
     l_box.pose.position.x = l_pose.translation().x();
@@ -256,12 +268,16 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     l_pt.type = visualization_msgs::Marker::SPHERE;
     l_pt.ns = "hand_pt";
     l_pt.id = 0;
+    l_pt.color.r = 1;
     l_pt.color.g = 1;
     l_pt.color.a = 1;
     l_pt.scale.x = 0.04;
     l_pt.scale.y = 0.04;
     l_pt.scale.z = 0.04;
-    l_pt.pose = l_box.pose;
+    l_pt.pose.orientation.w = 1;
+    l_pt.pose.position.x = l_hand_pos.x();
+    l_pt.pose.position.y = l_hand_pos.y();
+    l_pt.pose.position.z = l_hand_pos.z();
     boxes.markers.push_back(l_pt);
 
     visualization_msgs::Marker r_box;
@@ -271,9 +287,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     r_box.id = 1;
     r_box.color.b = 1;
     r_box.color.a = 0.3;
-    r_box.scale.x = max_x - min_x;
-    r_box.scale.y = max_y - min_y;
-    r_box.scale.z = max_z - min_z;
+    r_box.scale.x = hand_box.max_x - hand_box.min_x;
+    r_box.scale.y = hand_box.max_y - hand_box.min_y;
+    r_box.scale.z = hand_box.max_z - hand_box.min_z;
 
     Eigen::Affine3f r_pose = r_matrix * center;
     r_box.pose.position.x = r_pose.translation().x();
@@ -291,12 +307,16 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     r_pt.type = visualization_msgs::Marker::SPHERE;
     r_pt.ns = "hand_pt";
     r_pt.id = 1;
+    r_pt.color.r = 1;
     r_pt.color.g = 1;
     r_pt.color.a = 1;
     r_pt.scale.x = 0.04;
     r_pt.scale.y = 0.04;
     r_pt.scale.z = 0.04;
-    r_pt.pose = r_box.pose;
+    r_pt.pose.orientation.w = 1;
+    r_pt.pose.position.x = r_hand_pos.x();
+    r_pt.pose.position.y = r_hand_pos.y();
+    r_pt.pose.position.z = r_hand_pos.z();
     boxes.markers.push_back(r_pt);
 
     skeleton_pub_.publish(boxes);
@@ -352,8 +372,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
                        thermal_threshold_, debug_, labels);
   } else if (labeling_algorithm_ == kBox) {
-    // LabelWithBox(rgb_bridge->image, near_hand_mask, debug_, labels);
-    labels.setTo(cv::Scalar(255), near_hand_mask);
+    LabelWithBox(points, near_hand_mask, rgb_rows, rgb_cols, l_hand_pos,
+                 r_hand_pos, debug_, labels);
   } else {
     ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
                        labeling_algorithm_.c_str());
@@ -455,6 +475,18 @@ void MaskToIndices(uint8_t* mask, int len,
   }
 }
 
+void IndicesToMask(const std::vector<int>& indices, int rows, int cols,
+                   cv::OutputArray mask) {
+  mask.create(rows, cols, CV_8UC1);
+  cv::Mat out = mask.getMat();
+  for (size_t i = 0; i < indices.size(); ++i) {
+    int index = indices[i];
+    int row = index / cols;
+    int col = index % cols;
+    out.data[row * cols + col] = 1;
+  }
+}
+
 void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud) {
   for (unsigned int row = 0; row < rgb.height; ++row) {
@@ -479,6 +511,22 @@ void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
     }
   }
   point_cloud->header.frame_id = rgb.header.frame_id;
+}
+
+void GetPointCloud(const float4* points, int rows, int cols,
+                   pcl::PointCloud<pcl::PointXYZ>::Ptr point_cloud) {
+  for (int row = 0; row < rows; ++row) {
+    for (int col = 0; col < cols; ++col) {
+      int index = row * cols + col;
+
+      float4 pt = points[index];
+      PointP point;
+      point.x = pt.x;
+      point.y = pt.y;
+      point.z = pt.z;
+      point_cloud->push_back(point);
+    }
+  }
 }
 
 void Labeling::LabelWithThermal(cv::Mat thermal_projected,
@@ -858,5 +906,97 @@ void LabelWithFloodFill(cv::Mat rgb, cv::Mat near_hand_mask,
 
   cv::Mat labels_mat = labels.getMat();
   mask_image.copyTo(labels_mat, mask_image == 2);
+}
+
+void Labeling::LabelWithBox(float4* points, cv::Mat mask, int rows, int cols,
+                            Eigen::Vector3f l_hand_pos,
+                            Eigen::Vector3f r_hand_pos, bool debug,
+                            cv::OutputArray labels) {
+  // This algorithm uses the points within a box drawn around the hands.
+  // Sometimes parts of the scene enter the box, or fingers poke out of the box.
+  // To adjust for this, we make the box a little bigger (to capture any
+  // fingers) and use Euclidean clustering to try and segment the hand from
+  // other scene parts. We pick the two biggest clusters to be the hands.
+  // Segmentation of the hands
+  pcl::PointIndices::Ptr near_hand_indices(new pcl::PointIndices());
+  MaskToIndices(mask.data, rows * cols, near_hand_indices);
+
+  // Must be careful - point_cloud contains some invalid points (w=0). These are
+  // ignored by ComputeHandMask and thus not added to near_hand_indices.
+  // Here we add invalid points to preserve the indices.
+  PointCloudP::Ptr point_cloud(new PointCloudP());
+  for (int row = 0; row < rows; ++row) {
+    for (int col = 0; col < cols; ++col) {
+      int index = row * cols + col;
+
+      float4 pt = points[index];
+      PointP point;
+      point.x = pt.x;
+      point.y = pt.y;
+      point.z = pt.z;
+      point_cloud->push_back(point);
+    }
+  }
+
+  // Publish cloud
+  if (debug_) {
+    pcl::ExtractIndices<PointP> extract;
+    extract.setInputCloud(point_cloud);
+    extract.setIndices(near_hand_indices);
+    PointCloudP::Ptr pcl_out(new PointCloudP);
+    extract.filter(*pcl_out);
+    sensor_msgs::PointCloud2 out;
+    pcl::toROSMsg(*pcl_out, out);
+    out.header.frame_id = "camera_rgb_optical_frame";
+    cloud_pub_.publish(out);
+  }
+
+  int min_cluster_size;
+  ros::param::param("min_cluster_size", min_cluster_size, 10);
+  double cluster_tolerance;
+  ros::param::param("cluster_tolerance", cluster_tolerance, 0.03);
+
+  pcl::EuclideanClusterExtraction<PointP> ec;
+  ec.setInputCloud(point_cloud);
+  ec.setIndices(near_hand_indices);
+  ec.setMinClusterSize(min_cluster_size);
+  ec.setClusterTolerance(cluster_tolerance);
+
+  std::vector<pcl::PointIndices> clusters;
+  ec.extract(clusters);
+
+  if (debug_) {
+    ROS_INFO("Found %ld clusters", clusters.size());
+  }
+  if (clusters.size() == 0) {
+    return;
+  }
+
+  labels.create(rows, cols, CV_8UC1);
+  labels.setTo(cv::Scalar(0));
+
+  // Distance to wrist for a cluster to be part of the "hand"
+  double wrist_dist;
+  ros::param::param("wrist_dist", wrist_dist, 0.008);
+  for (size_t i = 0; i < clusters.size(); ++i) {
+    Eigen::Vector4f center;
+    pcl::compute3DCentroid(*point_cloud, clusters[i].indices, center);
+
+    float dlx = l_hand_pos.x() - center.x();
+    float dly = l_hand_pos.y() - center.y();
+    float dlz = l_hand_pos.z() - center.z();
+    float dl = dlx * dlx + dly * dly + dlz * dlz;
+    float drx = r_hand_pos.x() - center.x();
+    float dry = r_hand_pos.y() - center.y();
+    float drz = r_hand_pos.z() - center.z();
+    float dr = drx * drx + dry * dry + drz * drz;
+    float min_dist = std::min(dl, dr);
+    ROS_INFO("Cluster %ld: %ld points, center: %f %f %f, distance: %f", i,
+             clusters[i].indices.size(), center.x(), center.y(), center.z(),
+             min_dist);
+    if (min_dist < wrist_dist) {
+      IndicesToMask(clusters[i].indices, rows, cols, labels);
+    }
+  }
 }
 }  // namespace skinseg

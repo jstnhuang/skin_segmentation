@@ -1,5 +1,18 @@
 <launch>
+  <arg name="isboxalg" default="false" />
+
   <param name="label_data_debug" value="true" />
   <param name="max_time_skew" value="1" />
   <param name="overlay_alpha" value="0.8" />
+  <param name="cluster_tolerance" value="0.03" />
+  <param name="min_cluster_size" value="10" />
+
+  <group if="$(arg isboxalg)">
+    <param name="min_x" value="0.075" />
+    <param name="max_x" value="0.28" />
+    <param name="min_y" value="-0.15" />
+    <param name="max_y" value="0.15" />
+    <param name="min_z" value="-0.12" />
+    <param name="max_z" value="0.12" />
+  </group>
 </launch>

@@ -5,7 +5,9 @@
 #include "pcl/point_types.h"
 
 namespace skinseg {
+typedef pcl::PointXYZ PointP;
 typedef pcl::PointXYZRGB PointC;
+typedef pcl::PointCloud<pcl::PointXYZ> PointCloudP;
 typedef pcl::PointCloud<pcl::PointXYZRGB> PointCloudC;
 }  // namespace skinseg
 
