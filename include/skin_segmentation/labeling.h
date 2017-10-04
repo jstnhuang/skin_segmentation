@@ -42,10 +42,6 @@ class Labeling {
   void LabelWithThermal(cv::Mat thermal_projected, cv::Mat near_hand_mask,
                         int rows, int cols, float thermal_threshold,
                         cv::OutputArray labels);
-  void LabelWithRegionGrowingRGB(float4* points, sensor_msgs::ImageConstPtr rgb,
-                                 cv::Mat thermal, cv::Mat near_hand_mask,
-                                 int rows, int cols, float thermal_threshold,
-                                 cv::OutputArray labels);
   void LabelWithGrabCut(const sensor_msgs::ImageConstPtr& rgb, int rows,
                         int cols, cv::Mat thermal_projected,
                         cv::Mat near_hand_mask, float thermal_threshold,
