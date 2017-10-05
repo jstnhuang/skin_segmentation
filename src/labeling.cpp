@@ -128,8 +128,14 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       nerf_->model->getKinematics()->getJointIndex(kNerfLForearmRotJoint);
   int r_index =
       nerf_->model->getKinematics()->getJointIndex(kNerfRForearmRotJoint);
+  int l_hand_index =
+      nerf_->model->getKinematics()->getJointIndex(kNerfLMiddleFinger1Joint);
+  int r_hand_index =
+      nerf_->model->getKinematics()->getJointIndex(kNerfRMiddleFinger1Joint);
   nerf::DualQuaternion l_forearm_pose = joint_poses[l_index];
   nerf::DualQuaternion r_forearm_pose = joint_poses[r_index];
+  nerf::DualQuaternion l_hand_pose = joint_poses[l_hand_index];
+  nerf::DualQuaternion r_hand_pose = joint_poses[r_hand_index];
   l_forearm_pose.normalize();
   r_forearm_pose.normalize();
   Eigen::Affine3f l_matrix(l_forearm_pose.ToMatrix());
@@ -140,8 +146,15 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   r_pose_mat.topLeftCorner(3, 3) = r_pose_rot;
   Eigen::Affine3f r_matrix(r_pose_mat);
 
+  Eigen::Vector3f l_hand_pos =
+      Eigen::Affine3f(l_hand_pose.ToMatrix()).translation();
+  Eigen::Vector3f r_hand_pos =
+      Eigen::Affine3f(r_hand_pose.ToMatrix()).translation();
+
   l_matrix.translation() *= model_scale;
   r_matrix.translation() *= model_scale;
+  l_hand_pos *= model_scale;
+  r_hand_pos *= model_scale;
 
   HandBoxCoords hand_box;
   ros::param::param("min_x", hand_box.min_x, 0.075f);
@@ -152,10 +165,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   ros::param::param("max_z", hand_box.max_z, 0.09f);
 
   // Get hand poses
-  Eigen::Vector3f hand_in_forearm;
-  hand_in_forearm << (hand_box.min_x + hand_box.max_x) / 2, 0, 0;
-  Eigen::Vector3f l_hand_pos = l_matrix * hand_in_forearm;
-  Eigen::Vector3f r_hand_pos = r_matrix * hand_in_forearm;
+  // Eigen::Vector3f hand_in_forearm;
+  // hand_in_forearm << (hand_box.min_x + hand_box.max_x) / 2, 0, 0;
+  // Eigen::Vector3f l_hand_pos = l_matrix * hand_in_forearm;
+  // Eigen::Vector3f r_hand_pos = r_matrix * hand_in_forearm;
 
   cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   ComputeHandMask(points, rgb_rows, rgb_cols, hand_box.min_x, hand_box.max_x,
@@ -295,20 +308,21 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   }
 
   // Data augmentation
+  // TODO: do this in a different executable
   // Greyscale
-  cv::Mat greyscale;
-  cv::cvtColor(rgb_bridge->image, greyscale, CV_RGB2GRAY, 3);
-  // Horizontal flip
-  cv::Mat rgb_flip;
-  cv::Mat depth_flip;
-  cv::Mat labels_flip;
-  cv::flip(rgb_bridge->image, rgb_flip, 1);
-  cv::flip(depth_bridge->image, depth_flip, 1);
-  cv::flip(labels_bridge.image, labels_flip, 1);
+  // cv::Mat greyscale;
+  // cv::cvtColor(rgb_bridge->image, greyscale, CV_RGB2GRAY, 3);
+  //// Horizontal flip
+  // cv::Mat rgb_flip;
+  // cv::Mat depth_flip;
+  // cv::Mat labels_flip;
+  // cv::flip(rgb_bridge->image, rgb_flip, 1);
+  // cv::flip(depth_bridge->image, depth_flip, 1);
+  // cv::flip(labels_bridge.image, labels_flip, 1);
 
-  // Black and white and horizontal flip
-  cv::Mat grey_flip;
-  cv::cvtColor(rgb_flip, grey_flip, CV_RGB2GRAY, 3);
+  //// Black and white and horizontal flip
+  // cv::Mat grey_flip;
+  // cv::cvtColor(rgb_flip, grey_flip, CV_RGB2GRAY, 3);
 
   // Even though there is some time difference, we are assuming that we have
   // done our best to temporally align the images and now assume all the images
@@ -329,25 +343,26 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     output_ss << output_dir_ << std::right << std::setfill('0') << std::setw(5)
               << frame_count_ << "-";
     std::string color_name(output_ss.str() + "color.png");
-    std::string grey_name(output_ss.str() + "grey.png");
+    // std::string grey_name(output_ss.str() + "grey.png");
     std::string depth_name(output_ss.str() + "depth.png");
     std::string labels_name(output_ss.str() + "labels.png");
 
-    std::string color_flip_name(output_ss.str() + "color_flip.png");
-    std::string grey_flip_name(output_ss.str() + "grey_flip.png");
-    std::string depth_flip_name(output_ss.str() + "depth_flip.png");
-    std::string labels_flip_name(output_ss.str() + "labels_flip.png");
+    // std::string color_flip_name(output_ss.str() + "color_flip.png");
+    // std::string grey_flip_name(output_ss.str() + "grey_flip.png");
+    // std::string depth_flip_name(output_ss.str() + "depth_flip.png");
+    // std::string labels_flip_name(output_ss.str() + "labels_flip.png");
 
     cv::imwrite(color_name, rgb_bridge->image);
-    cv::imwrite(grey_name, greyscale);
+    // cv::imwrite(grey_name, greyscale);
     cv::imwrite(depth_name, depth_bridge->image);
     cv::imwrite(labels_name, labels_bridge.image * 255);
 
-    cv::imwrite(color_flip_name, rgb_flip);
-    cv::imwrite(grey_flip_name, grey_flip);
-    cv::imwrite(depth_flip_name, depth_flip);
-    cv::imwrite(labels_flip_name, labels_flip * 255);
+    // cv::imwrite(color_flip_name, rgb_flip);
+    // cv::imwrite(grey_flip_name, grey_flip);
+    // cv::imwrite(depth_flip_name, depth_flip);
+    // cv::imwrite(labels_flip_name, labels_flip * 255);
     ++frame_count_;
+    ROS_INFO("Processed frame %d", frame_count_);
   }
 
   cudaDeviceSynchronize();

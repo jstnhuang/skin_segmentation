@@ -19,6 +19,8 @@ static const char kNerfModelPackage[] = "nerf_models";
 static const char kNerfHumanModelPath[] = "/human_1/human_1.json";
 static const char kNerfLForearmRotJoint[] = "forearmLf_rx";
 static const char kNerfRForearmRotJoint[] = "forearmRt_rx";
+static const char kNerfLMiddleFinger1Joint[] = "middleLf1_rz";
+static const char kNerfRMiddleFinger1Joint[] = "middleRt1_rz";
 static const char kImageSetTopic[] = "/images";
 }  // namespace skinseg
 
