@@ -123,6 +123,7 @@ catkin_package(
     skin_segmentation_labeling
     skin_segmentation_load_configs
     skin_segmentation_nerf
+    skin_segmentation_opencv_utils
     skin_segmentation_projection
     skin_segmentation_snapshot
     skin_segmentation_thresholding
@@ -163,6 +164,7 @@ include_directories(
 add_library(skin_segmentation_calibration src/calibration.cpp)
 add_dependencies(skin_segmentation_calibration ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_calibration
+  skin_segmentation_opencv_utils
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
@@ -170,6 +172,7 @@ target_link_libraries(skin_segmentation_calibration
 cuda_add_library(skin_segmentation_labeling src/labeling.cpp src/labeling.cu)
 add_dependencies(skin_segmentation_labeling ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_labeling
+  skin_segmentation_opencv_utils
   skin_segmentation_projection
   skin_segmentation_nerf
   ${catkin_LIBRARIES}
@@ -190,9 +193,17 @@ target_link_libraries(skin_segmentation_nerf
   ${catkin_LIBRARIES}
 )
 
+add_library(skin_segmentation_opencv_utils src/opencv_utils.cpp)
+add_dependencies(skin_segmentation_opencv_utils ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_opencv_utils
+  ${catkin_LIBRARIES}
+  ${OpenCV_LIBRARIES}
+)
+
 cuda_add_library(skin_segmentation_projection src/projection.cpp src/projection.cu)
 add_dependencies(skin_segmentation_projection ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_projection
+  skin_segmentation_opencv_utils
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
@@ -206,6 +217,7 @@ target_link_libraries(skin_segmentation_snapshot
 add_library(skin_segmentation_thresholding src/thresholding.cpp)
 add_dependencies(skin_segmentation_thresholding ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_thresholding
+  skin_segmentation_opencv_utils
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
@@ -215,6 +227,7 @@ add_executable(skin_segmentation_calibration_capture src/calibration_capture.cpp
 set_target_properties(skin_segmentation_calibration_capture PROPERTIES OUTPUT_NAME calibration_capture PREFIX "")
 add_dependencies(skin_segmentation_calibration_capture ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_calibration_capture
+  skin_segmentation_opencv_utils
   ${catkin_LIBRARIES}
   ${OpenCV_LIBRARIES}
 )
