@@ -179,10 +179,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       ROS_ERROR("Unable to find good threshold, skipping");
       return;
     }
-
-    cv::Mat otsu_mask = thermal_projected > thermal_threshold_;
-    cv::namedWindow("Otsu mask");
-    cv::imshow("Otsu mask", otsu_mask * 255);
   }
 
   cv_bridge::CvImageConstPtr rgb_bridge =
