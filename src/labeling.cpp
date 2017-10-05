@@ -143,12 +143,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_matrix.translation() *= model_scale;
   r_matrix.translation() *= model_scale;
 
-  // Get hand poses
-  Eigen::Vector3f hand_in_forearm;
-  hand_in_forearm << (0.075 + 0.28) / 2, 0, 0;
-  Eigen::Vector3f l_hand_pos = l_matrix * hand_in_forearm;
-  Eigen::Vector3f r_hand_pos = r_matrix * hand_in_forearm;
-
   HandBoxCoords hand_box;
   ros::param::param("min_x", hand_box.min_x, 0.075f);
   ros::param::param("max_x", hand_box.max_x, 0.28f);
@@ -156,6 +150,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   ros::param::param("max_y", hand_box.max_y, 0.12f);
   ros::param::param("min_z", hand_box.min_z, -0.09f);
   ros::param::param("max_z", hand_box.max_z, 0.09f);
+
+  // Get hand poses
+  Eigen::Vector3f hand_in_forearm;
+  hand_in_forearm << (hand_box.min_x + hand_box.max_x) / 2, 0, 0;
+  Eigen::Vector3f l_hand_pos = l_matrix * hand_in_forearm;
+  Eigen::Vector3f r_hand_pos = r_matrix * hand_in_forearm;
 
   cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   ComputeHandMask(points, rgb_rows, rgb_cols, hand_box.min_x, hand_box.max_x,
