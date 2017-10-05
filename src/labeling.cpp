@@ -394,16 +394,18 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
                        overlay_bridge.toImageMsg());
   }
   if (output_dir_ != "") {
-    std::stringstream ss;
-    ss << output_dir_ << std::right << std::setfill('0') << std::setw(5)
-       << frame_count_ << "-";
-    std::string base(ss.str());
-    std::string color_name = base + "color.png";
-    std::string depth_name = base + "depth.png";
-    std::string labels_name = base + "labels.png";
-    cv::imwrite(color_name, rgb_bridge->image);
-    cv::imwrite(depth_name, depth_bridge->image);
-    cv::imwrite(labels_name, labels_bridge.image * 255);
+    std::stringstream color_ss;
+    color_ss << output_dir_ << "color/" << std::right << std::setfill('0')
+             << std::setw(5) << frame_count_ << "-color.png";
+    std::stringstream depth_ss;
+    depth_ss << output_dir_ << "depth/" << std::right << std::setfill('0')
+             << std::setw(5) << frame_count_ << "-depth.png";
+    std::stringstream labels_ss;
+    labels_ss << output_dir_ << "labels/" << std::right << std::setfill('0')
+              << std::setw(5) << frame_count_ << "-labels.png";
+    cv::imwrite(color_ss.str(), rgb_bridge->image);
+    cv::imwrite(depth_ss.str(), depth_bridge->image);
+    cv::imwrite(labels_ss.str(), labels_bridge.image * 255);
     ++frame_count_;
   }
 
