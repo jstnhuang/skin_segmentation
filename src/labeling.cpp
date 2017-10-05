@@ -186,90 +186,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
 
   if (debug_) {
-    Eigen::Affine3f center(Eigen::Affine3f::Identity());
-    center(0, 3) = (hand_box.max_x + hand_box.min_x) / 2;
-    center(1, 3) = (hand_box.max_y + hand_box.min_y) / 2;
-    center(2, 3) = (hand_box.max_z + hand_box.min_z) / 2;
-
     visualization_msgs::MarkerArray boxes;
-    visualization_msgs::Marker l_box;
-    l_box.header.frame_id = "camera_rgb_optical_frame";
-    l_box.type = visualization_msgs::Marker::CUBE;
-    l_box.ns = "hand_box";
-    l_box.id = 0;
-    l_box.color.b = 1;
-    l_box.color.a = 0.3;
-    l_box.scale.x = hand_box.max_x - hand_box.min_x;
-    l_box.scale.y = hand_box.max_y - hand_box.min_y;
-    l_box.scale.z = hand_box.max_z - hand_box.min_z;
-
-    Eigen::Affine3f l_pose = l_matrix * center;
-    l_box.pose.position.x = l_pose.translation().x();
-    l_box.pose.position.y = l_pose.translation().y();
-    l_box.pose.position.z = l_pose.translation().z();
-    Eigen::Quaternionf l_rot(l_pose.rotation());
-    l_box.pose.orientation.w = l_rot.w();
-    l_box.pose.orientation.x = l_rot.x();
-    l_box.pose.orientation.y = l_rot.y();
-    l_box.pose.orientation.z = l_rot.z();
-    boxes.markers.push_back(l_box);
-
-    visualization_msgs::Marker l_pt;
-    l_pt.header.frame_id = "camera_rgb_optical_frame";
-    l_pt.type = visualization_msgs::Marker::SPHERE;
-    l_pt.ns = "hand_pt";
-    l_pt.id = 0;
-    l_pt.color.r = 1;
-    l_pt.color.g = 1;
-    l_pt.color.a = 1;
-    l_pt.scale.x = 0.04;
-    l_pt.scale.y = 0.04;
-    l_pt.scale.z = 0.04;
-    l_pt.pose.orientation.w = 1;
-    l_pt.pose.position.x = l_hand_pos.x();
-    l_pt.pose.position.y = l_hand_pos.y();
-    l_pt.pose.position.z = l_hand_pos.z();
-    boxes.markers.push_back(l_pt);
-
-    visualization_msgs::Marker r_box;
-    r_box.header.frame_id = "camera_rgb_optical_frame";
-    r_box.type = visualization_msgs::Marker::CUBE;
-    r_box.ns = "hand_box";
-    r_box.id = 1;
-    r_box.color.b = 1;
-    r_box.color.a = 0.3;
-    r_box.scale.x = hand_box.max_x - hand_box.min_x;
-    r_box.scale.y = hand_box.max_y - hand_box.min_y;
-    r_box.scale.z = hand_box.max_z - hand_box.min_z;
-
-    Eigen::Affine3f r_pose = r_matrix * center;
-    r_box.pose.position.x = r_pose.translation().x();
-    r_box.pose.position.y = r_pose.translation().y();
-    r_box.pose.position.z = r_pose.translation().z();
-    Eigen::Quaternionf r_rot(r_pose.rotation());
-    r_box.pose.orientation.w = r_rot.w();
-    r_box.pose.orientation.x = r_rot.x();
-    r_box.pose.orientation.y = r_rot.y();
-    r_box.pose.orientation.z = r_rot.z();
-    boxes.markers.push_back(r_box);
-
-    visualization_msgs::Marker r_pt;
-    r_pt.header.frame_id = "camera_rgb_optical_frame";
-    r_pt.type = visualization_msgs::Marker::SPHERE;
-    r_pt.ns = "hand_pt";
-    r_pt.id = 1;
-    r_pt.color.r = 1;
-    r_pt.color.g = 1;
-    r_pt.color.a = 1;
-    r_pt.scale.x = 0.04;
-    r_pt.scale.y = 0.04;
-    r_pt.scale.z = 0.04;
-    r_pt.pose.orientation.w = 1;
-    r_pt.pose.position.x = r_hand_pos.x();
-    r_pt.pose.position.y = r_hand_pos.y();
-    r_pt.pose.position.z = r_hand_pos.z();
-    boxes.markers.push_back(r_pt);
-
+    HandBoxMarkers(hand_box, l_matrix, r_matrix, l_hand_pos, r_hand_pos,
+                   &boxes);
     skeleton_pub_.publish(boxes);
   }
 
@@ -464,6 +383,96 @@ void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
     }
   }
   point_cloud->header.frame_id = rgb.header.frame_id;
+}
+
+void HandBoxMarkers(const HandBoxCoords& hand_box,
+                    const Eigen::Affine3f l_matrix,
+                    const Eigen::Affine3f r_matrix,
+                    const Eigen::Vector3f l_hand_pos,
+                    const Eigen::Vector3f r_hand_pos,
+                    visualization_msgs::MarkerArray* boxes) {
+  Eigen::Affine3f center(Eigen::Affine3f::Identity());
+  center(0, 3) = (hand_box.max_x + hand_box.min_x) / 2;
+  center(1, 3) = (hand_box.max_y + hand_box.min_y) / 2;
+  center(2, 3) = (hand_box.max_z + hand_box.min_z) / 2;
+
+  visualization_msgs::Marker l_box;
+  l_box.header.frame_id = "camera_rgb_optical_frame";
+  l_box.type = visualization_msgs::Marker::CUBE;
+  l_box.ns = "hand_box";
+  l_box.id = 0;
+  l_box.color.b = 1;
+  l_box.color.a = 0.3;
+  l_box.scale.x = hand_box.max_x - hand_box.min_x;
+  l_box.scale.y = hand_box.max_y - hand_box.min_y;
+  l_box.scale.z = hand_box.max_z - hand_box.min_z;
+
+  Eigen::Affine3f l_pose = l_matrix * center;
+  l_box.pose.position.x = l_pose.translation().x();
+  l_box.pose.position.y = l_pose.translation().y();
+  l_box.pose.position.z = l_pose.translation().z();
+  Eigen::Quaternionf l_rot(l_pose.rotation());
+  l_box.pose.orientation.w = l_rot.w();
+  l_box.pose.orientation.x = l_rot.x();
+  l_box.pose.orientation.y = l_rot.y();
+  l_box.pose.orientation.z = l_rot.z();
+  boxes->markers.push_back(l_box);
+
+  visualization_msgs::Marker l_pt;
+  l_pt.header.frame_id = "camera_rgb_optical_frame";
+  l_pt.type = visualization_msgs::Marker::SPHERE;
+  l_pt.ns = "hand_pt";
+  l_pt.id = 0;
+  l_pt.color.r = 1;
+  l_pt.color.g = 1;
+  l_pt.color.a = 1;
+  l_pt.scale.x = 0.04;
+  l_pt.scale.y = 0.04;
+  l_pt.scale.z = 0.04;
+  l_pt.pose.orientation.w = 1;
+  l_pt.pose.position.x = l_hand_pos.x();
+  l_pt.pose.position.y = l_hand_pos.y();
+  l_pt.pose.position.z = l_hand_pos.z();
+  boxes->markers.push_back(l_pt);
+
+  visualization_msgs::Marker r_box;
+  r_box.header.frame_id = "camera_rgb_optical_frame";
+  r_box.type = visualization_msgs::Marker::CUBE;
+  r_box.ns = "hand_box";
+  r_box.id = 1;
+  r_box.color.b = 1;
+  r_box.color.a = 0.3;
+  r_box.scale.x = hand_box.max_x - hand_box.min_x;
+  r_box.scale.y = hand_box.max_y - hand_box.min_y;
+  r_box.scale.z = hand_box.max_z - hand_box.min_z;
+
+  Eigen::Affine3f r_pose = r_matrix * center;
+  r_box.pose.position.x = r_pose.translation().x();
+  r_box.pose.position.y = r_pose.translation().y();
+  r_box.pose.position.z = r_pose.translation().z();
+  Eigen::Quaternionf r_rot(r_pose.rotation());
+  r_box.pose.orientation.w = r_rot.w();
+  r_box.pose.orientation.x = r_rot.x();
+  r_box.pose.orientation.y = r_rot.y();
+  r_box.pose.orientation.z = r_rot.z();
+  boxes->markers.push_back(r_box);
+
+  visualization_msgs::Marker r_pt;
+  r_pt.header.frame_id = "camera_rgb_optical_frame";
+  r_pt.type = visualization_msgs::Marker::SPHERE;
+  r_pt.ns = "hand_pt";
+  r_pt.id = 1;
+  r_pt.color.r = 1;
+  r_pt.color.g = 1;
+  r_pt.color.a = 1;
+  r_pt.scale.x = 0.04;
+  r_pt.scale.y = 0.04;
+  r_pt.scale.z = 0.04;
+  r_pt.pose.orientation.w = 1;
+  r_pt.pose.position.x = r_hand_pos.x();
+  r_pt.pose.position.y = r_hand_pos.y();
+  r_pt.pose.position.z = r_hand_pos.z();
+  boxes->markers.push_back(r_pt);
 }
 
 void GetPointCloud(const float4* points, int rows, int cols,

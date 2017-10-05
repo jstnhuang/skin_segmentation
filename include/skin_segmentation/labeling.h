@@ -99,6 +99,13 @@ void IndicesToMask(const std::vector<int>& indices, int rows, int cols,
 void GetPointCloud(const float4* points, const sensor_msgs::Image& rgb,
                    pcl::PointCloud<pcl::PointXYZRGB>::Ptr point_cloud);
 
+void HandBoxMarkers(const HandBoxCoords& hand_box,
+                    const Eigen::Affine3f l_matrix,
+                    const Eigen::Affine3f r_matrix,
+                    const Eigen::Vector3f l_hand_pos,
+                    const Eigen::Vector3f r_hand_pos,
+                    visualization_msgs::MarkerArray* boxes);
+
 void LabelWithReducedColorComponents(cv::Mat rgb, cv::Mat near_hand_mask,
                                      cv::Mat thermal_projected,
                                      double thermal_threshold,
