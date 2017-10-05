@@ -267,29 +267,29 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     overlay_pub_.publish(msg);
   }
 
-  std::stringstream ss;
-  ss << "Time skews: T-D: " << std::setprecision(3) << thermal_depth_skew
-     << ", C-D: " << std::setprecision(3) << rgb_depth_skew
-     << ", T-C: " << std::setprecision(3) << thermal_rgb_skew;
-  std::string text(ss.str());
-  float abs_td_skew = fabs(thermal_depth_skew);
-  float abs_rd_skew = fabs(rgb_depth_skew);
-  float abs_tr_skew = fabs(thermal_rgb_skew);
-  if (abs_td_skew < 0.005 && abs_rd_skew < 0.005 && abs_tr_skew < 0.005) {
-    cv::Scalar green(0, 255, 0);
-    cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-                green);
-  } else if (abs_td_skew < 0.01 && abs_rd_skew < 0.01 && abs_tr_skew < 0.01) {
-    cv::Scalar yellow(0, 255, 255);
-    cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-                yellow);
-  } else {
-    cv::Scalar red(0, 0, 255);
-    cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX, 0.5,
-                red);
-  }
-
   if (debug_) {
+    std::stringstream ss;
+    ss << "Time skews: T-D: " << std::setprecision(3) << thermal_depth_skew
+       << ", C-D: " << std::setprecision(3) << rgb_depth_skew
+       << ", T-C: " << std::setprecision(3) << thermal_rgb_skew;
+    std::string text(ss.str());
+    float abs_td_skew = fabs(thermal_depth_skew);
+    float abs_rd_skew = fabs(rgb_depth_skew);
+    float abs_tr_skew = fabs(thermal_rgb_skew);
+    if (abs_td_skew < 0.005 && abs_rd_skew < 0.005 && abs_tr_skew < 0.005) {
+      cv::Scalar green(0, 255, 0);
+      cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
+                  0.5, green);
+    } else if (abs_td_skew < 0.01 && abs_rd_skew < 0.01 && abs_tr_skew < 0.01) {
+      cv::Scalar yellow(0, 255, 255);
+      cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
+                  0.5, yellow);
+    } else {
+      cv::Scalar red(0, 0, 255);
+      cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
+                  0.5, red);
+    }
+
     cv::namedWindow("Label overlay");
     cv::imshow("Label overlay", overlay);
   }
