@@ -240,6 +240,14 @@ target_link_libraries(skin_segmentation_calibration_main
   ${catkin_LIBRARIES}
 )
 
+add_executable(skin_segmentation_generate_augmentations_main src/generate_augmentations_main.cpp)
+set_target_properties(skin_segmentation_generate_augmentations_main PROPERTIES OUTPUT_NAME generate_augmentations PREFIX "")
+add_dependencies(skin_segmentation_generate_augmentations_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_generate_augmentations_main
+  skin_segmentation_opencv_utils
+  ${catkin_LIBRARIES}
+)
+
 add_executable(skin_segmentation_label_data_main src/label_data_main.cpp)
 set_target_properties(skin_segmentation_label_data_main PROPERTIES OUTPUT_NAME label_data PREFIX "")
 add_dependencies(skin_segmentation_label_data_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
