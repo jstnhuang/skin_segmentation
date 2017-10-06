@@ -307,26 +307,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     cv::imshow("Label overlay", overlay);
   }
 
-  // Data augmentation
-  // TODO: do this in a different executable
-  // Greyscale
-  // cv::Mat greyscale;
-  // cv::cvtColor(rgb_bridge->image, greyscale, CV_RGB2GRAY, 3);
-  //// Horizontal flip
-  // cv::Mat rgb_flip;
-  // cv::Mat depth_flip;
-  // cv::Mat labels_flip;
-  // cv::flip(rgb_bridge->image, rgb_flip, 1);
-  // cv::flip(depth_bridge->image, depth_flip, 1);
-  // cv::flip(labels_bridge.image, labels_flip, 1);
-
-  //// Black and white and horizontal flip
-  // cv::Mat grey_flip;
-  // cv::cvtColor(rgb_flip, grey_flip, CV_RGB2GRAY, 3);
-
-  // Even though there is some time difference, we are assuming that we have
-  // done our best to temporally align the images and now assume all the images
-  // have the same timestamp.
   sensor_msgs::Image depth_out = *depth;
   depth_out.header.stamp = rgb->header.stamp;
 
@@ -343,24 +323,13 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     output_ss << output_dir_ << std::right << std::setfill('0') << std::setw(5)
               << frame_count_ << "-";
     std::string color_name(output_ss.str() + "color.png");
-    // std::string grey_name(output_ss.str() + "grey.png");
     std::string depth_name(output_ss.str() + "depth.png");
     std::string labels_name(output_ss.str() + "labels.png");
 
-    // std::string color_flip_name(output_ss.str() + "color_flip.png");
-    // std::string grey_flip_name(output_ss.str() + "grey_flip.png");
-    // std::string depth_flip_name(output_ss.str() + "depth_flip.png");
-    // std::string labels_flip_name(output_ss.str() + "labels_flip.png");
-
     cv::imwrite(color_name, rgb_bridge->image);
-    // cv::imwrite(grey_name, greyscale);
     cv::imwrite(depth_name, depth_bridge->image);
     cv::imwrite(labels_name, labels_bridge.image * 255);
 
-    // cv::imwrite(color_flip_name, rgb_flip);
-    // cv::imwrite(grey_flip_name, grey_flip);
-    // cv::imwrite(depth_flip_name, depth_flip);
-    // cv::imwrite(labels_flip_name, labels_flip * 255);
     ++frame_count_;
     ROS_INFO("Processed frame %d", frame_count_);
   }
