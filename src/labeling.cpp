@@ -307,11 +307,18 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     cv::imshow("Label overlay", overlay);
   }
 
-  sensor_msgs::Image depth_out = *depth;
-  depth_out.header.stamp = rgb->header.stamp;
+  ++frame_count_;
+  if (debug_) {
+    char user_key = (char)cv::waitKey(0);
+    if (user_key == 'n') {
+      return;
+    }
+  }
 
   if (output_bag_ != NULL) {
     output_bag_->write(kRgbTopic, rgb->header.stamp, rgb);
+    sensor_msgs::Image depth_out = *depth;
+    depth_out.header.stamp = rgb->header.stamp;
     output_bag_->write(kDepthTopic, rgb->header.stamp, depth_out);
     output_bag_->write(kLabelsTopic, rgb->header.stamp,
                        labels_bridge.toImageMsg());
@@ -330,15 +337,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     cv::imwrite(depth_name, depth_bridge->image);
     cv::imwrite(labels_name, labels_bridge.image * 255);
 
-    ++frame_count_;
     ROS_INFO("Processed frame %d", frame_count_);
   }
 
   cudaDeviceSynchronize();
-
-  if (debug_) {
-    cv::waitKey();
-  }
 }
 
 void Labeling::set_debug(bool debug) { debug_ = debug; }
