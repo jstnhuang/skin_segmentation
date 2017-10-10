@@ -24,9 +24,12 @@
 #include "sensor_msgs/Image.h"
 #include "sensor_msgs/PointCloud2.h"
 #include "std_msgs/Float64.h"
+#include "transform_graph/graph.h"
 #include "visualization_msgs/MarkerArray.h"
 
+#include "skin_segmentation/box_interactive_marker.h"
 #include "skin_segmentation/constants.h"
+#include "skin_segmentation/hand_box_coords.h"
 #include "skin_segmentation/nerf.h"
 #include "skin_segmentation/opencv_utils.h"
 #include "skin_segmentation/pcl_typedefs.h"
@@ -36,11 +39,15 @@ using sensor_msgs::Image;
 
 namespace skinseg {
 Labeling::Labeling(const Projection& projection, Nerf* nerf,
-                   const std::string& output_dir, rosbag::Bag* output_bag)
+                   const std::string& output_dir, rosbag::Bag* output_bag,
+                   BoxInteractiveMarker* left_box,
+                   BoxInteractiveMarker* right_box)
     : projection_(projection),
       nerf_(nerf),
       output_bag_(output_bag),
       output_dir_(output_dir),
+      left_box_(left_box),
+      right_box_(right_box),
       debug_(false),
       nh_(),
       skeleton_pub_(
@@ -64,6 +71,18 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
   if (output_dir_[output_dir_.size() - 1] != '/') {
     output_dir_ += "/";
   }
+
+  HandBoxCoords hand_box;
+  ros::param::param("min_x", hand_box.min_x, 0.075f);
+  ros::param::param("max_x", hand_box.max_x, 0.28f);
+  ros::param::param("min_y", hand_box.min_y, -0.12f);
+  ros::param::param("max_y", hand_box.max_y, 0.12f);
+  ros::param::param("min_z", hand_box.min_z, -0.09f);
+  ros::param::param("max_z", hand_box.max_z, 0.09f);
+  skinseg::SetInteractiveBoxToHandBox(hand_box, left_box_);
+  skinseg::SetInteractiveBoxToHandBox(hand_box, right_box_);
+  left_box_->Show();
+  right_box_->Show();
 }
 
 void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
@@ -156,25 +175,28 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   l_hand_pos *= model_scale;
   r_hand_pos *= model_scale;
 
-  HandBoxCoords hand_box;
-  ros::param::param("min_x", hand_box.min_x, 0.075f);
-  ros::param::param("max_x", hand_box.max_x, 0.28f);
-  ros::param::param("min_y", hand_box.min_y, -0.12f);
-  ros::param::param("max_y", hand_box.max_y, 0.12f);
-  ros::param::param("min_z", hand_box.min_z, -0.09f);
-  ros::param::param("max_z", hand_box.max_z, 0.09f);
+  geometry_msgs::PoseStamped left_ps;
+  Eigen::Affine3d left_matrix_d = l_matrix.cast<double>();
+  left_ps.header.frame_id = depth->header.frame_id;
+  transform_graph::Transform left_tf(left_matrix_d.matrix());
+  left_tf.ToPose(&left_ps.pose);
 
-  // Get hand poses
-  // Eigen::Vector3f hand_in_forearm;
-  // hand_in_forearm << (hand_box.min_x + hand_box.max_x) / 2, 0, 0;
-  // Eigen::Vector3f l_hand_pos = l_matrix * hand_in_forearm;
-  // Eigen::Vector3f r_hand_pos = r_matrix * hand_in_forearm;
+  geometry_msgs::PoseStamped right_ps;
+  right_ps.header.frame_id = depth->header.frame_id;
+  Eigen::Affine3d right_matrix_d = r_matrix.cast<double>();
+  transform_graph::Transform right_tf(right_matrix_d.matrix());
+  right_tf.ToPose(&right_ps.pose);
+
+  left_box_->set_pose_stamped(left_ps);
+  right_box_->set_pose_stamped(right_ps);
 
   cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
-  ComputeHandMask(points, rgb_rows, rgb_cols, hand_box.min_x, hand_box.max_x,
-                  hand_box.min_y, hand_box.max_y, hand_box.min_z,
-                  hand_box.max_z, camera_data_, l_matrix, r_matrix,
-                  near_hand_mask.data);
+  HandBoxCoords left_box_coords;
+  GetInteractiveBox(left_box_, &left_box_coords);
+  HandBoxCoords right_box_coords;
+  GetInteractiveBox(right_box_, &right_box_coords);
+  ComputeHandMask(points, rgb_rows, rgb_cols, left_box_coords, right_box_coords,
+                  camera_data_, l_matrix, r_matrix, near_hand_mask.data);
 
   // Try to find a threshold that separates skin from clothing.
   if (thermal_threshold_ == 0) {
@@ -199,10 +221,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
 
   if (debug_) {
-    visualization_msgs::MarkerArray boxes;
-    HandBoxMarkers(hand_box, l_matrix, r_matrix, l_hand_pos, r_hand_pos,
-                   &boxes);
-    skeleton_pub_.publish(boxes);
+    // visualization_msgs::MarkerArray boxes;
+    // HandBoxMarkers(hand_box, l_matrix, r_matrix, l_hand_pos, r_hand_pos,
+    //               &boxes);
+    // skeleton_pub_.publish(boxes);
   }
 
   // If time skew is too great, skip this frame
@@ -485,6 +507,25 @@ void HandBoxMarkers(const HandBoxCoords& hand_box,
   r_pt.pose.position.y = r_hand_pos.y();
   r_pt.pose.position.z = r_hand_pos.z();
   boxes->markers.push_back(r_pt);
+}
+
+void SetInteractiveBoxToHandBox(const HandBoxCoords& hand_box,
+                                BoxInteractiveMarker* interactive_box) {
+  interactive_box->set_min_x(hand_box.min_x);
+  interactive_box->set_min_y(hand_box.min_y);
+  interactive_box->set_min_z(hand_box.min_z);
+  interactive_box->set_max_x(hand_box.max_x);
+  interactive_box->set_max_y(hand_box.max_y);
+  interactive_box->set_max_z(hand_box.max_z);
+}
+void GetInteractiveBox(BoxInteractiveMarker* interactive_box,
+                       HandBoxCoords* hand_box) {
+  hand_box->min_x = interactive_box->min_x();
+  hand_box->min_y = interactive_box->min_y();
+  hand_box->min_z = interactive_box->min_z();
+  hand_box->max_x = interactive_box->max_x();
+  hand_box->max_y = interactive_box->max_y();
+  hand_box->max_z = interactive_box->max_z();
 }
 
 void GetPointCloud(const float4* points, int rows, int cols,

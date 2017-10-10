@@ -3,6 +3,7 @@
 #include "Eigen/Dense"
 #include "sensor_msgs/Image.h"
 
+#include "skin_segmentation/hand_box_coords.h"
 #include "skin_segmentation/projection.h"
 
 namespace {
@@ -25,13 +26,12 @@ struct CameraData {
 }
 
 namespace skinseg {
-__global__ void gpu_ComputeHandMask(const float4* points, const int height,
-                                    const int width, float min_x, float max_x,
-                                    float min_y, float max_y, float min_z,
-                                    float max_z, CameraData camera_data,
-                                    Eigen::Affine3f* world_in_left,
-                                    Eigen::Affine3f* world_in_right,
-                                    uint8_t* mask) {
+__global__ void gpu_ComputeHandMask(
+    const float4* points, const int height, const int width, float l_min_x,
+    float l_max_x, float l_min_y, float l_max_y, float l_min_z, float l_max_z,
+    float r_min_x, float r_max_x, float r_min_y, float r_max_y, float r_min_z,
+    float r_max_z, CameraData camera_data, Eigen::Affine3f* world_in_left,
+    Eigen::Affine3f* world_in_right, uint8_t* mask) {
   int col = blockIdx.x * blockDim.x + threadIdx.x;
   int row = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -50,26 +50,20 @@ __global__ void gpu_ComputeHandMask(const float4* points, const int height,
   Eigen::Vector3f pos_in_l_frame = *world_in_left * xyz;
   Eigen::Vector3f pos_in_r_frame = *world_in_right * xyz;
 
-  // const float min_x = hand_box.min_x;
-  // const float max_x = hand_box.max_x;
-  // const float min_y = hand_box.min_y;
-  // const float max_y = hand_box.max_y;
-  // const float min_z = hand_box.min_z;
-  // const float max_z = hand_box.max_z;
   bool in_left_box =
-      (pos_in_l_frame.x() > min_x && pos_in_l_frame.x() < max_x &&
-       pos_in_l_frame.y() > min_y && pos_in_l_frame.y() < max_y &&
-       pos_in_l_frame.z() > min_z && pos_in_l_frame.z() < max_z);
+      (pos_in_l_frame.x() > l_min_x && pos_in_l_frame.x() < l_max_x &&
+       pos_in_l_frame.y() > l_min_y && pos_in_l_frame.y() < l_max_y &&
+       pos_in_l_frame.z() > l_min_z && pos_in_l_frame.z() < l_max_z);
   bool in_right_box =
-      (pos_in_r_frame.x() > min_x && pos_in_r_frame.x() < max_x &&
-       pos_in_r_frame.y() > min_y && pos_in_r_frame.y() < max_y &&
-       pos_in_r_frame.z() > min_z && pos_in_r_frame.z() < max_z);
+      (pos_in_r_frame.x() > r_min_x && pos_in_r_frame.x() < r_max_x &&
+       pos_in_r_frame.y() > r_min_y && pos_in_r_frame.y() < r_max_y &&
+       pos_in_r_frame.z() > r_min_z && pos_in_r_frame.z() < r_max_z);
   mask[index] = in_left_box || in_right_box;
 }
 
-void ComputeHandMask(float4* points, int height, int width, const float min_x,
-                     const float max_x, const float min_y, const float max_y,
-                     const float min_z, const float max_z,
+void ComputeHandMask(float4* points, int height, int width,
+                     const HandBoxCoords& left_box,
+                     const HandBoxCoords& right_box,
                      const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask) {
@@ -101,8 +95,10 @@ void ComputeHandMask(float4* points, int height, int width, const float min_x,
   dim3 numBlocks(ceil((float)width / threadsPerBlock.x),
                  ceil((float)height / threadsPerBlock.y));
   gpu_ComputeHandMask<<<numBlocks, threadsPerBlock>>>(
-      d_points, height, width, min_x, max_x, min_y, max_y, min_z, max_z,
-      camera_data, d_l_forearm_pose, d_r_forearm_pose, d_mask);
+      d_points, height, width, left_box.min_x, left_box.max_x, left_box.min_y,
+      left_box.max_y, left_box.min_z, left_box.max_z, right_box.min_x,
+      right_box.max_x, right_box.min_y, right_box.max_y, right_box.min_z,
+      right_box.max_z, camera_data, d_l_forearm_pose, d_r_forearm_pose, d_mask);
 
   HandleError(cudaMemcpy(mask, d_mask, mask_size, cudaMemcpyDeviceToHost));
   HandleError(cudaFree(d_l_forearm_pose));

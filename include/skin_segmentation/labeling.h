@@ -12,6 +12,8 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
+#include "skin_segmentation/box_interactive_marker.h"
+#include "skin_segmentation/hand_box_coords.h"
 #include "skin_segmentation/nerf.h"
 #include "skin_segmentation/projection.h"
 
@@ -29,7 +31,8 @@ class Labeling {
   // writes images to 00000-color.png, 00000-depth.png, 00000-labels.png, etc.
   // The counter is reset with each instance of Labeling.
   Labeling(const Projection& projection, Nerf* nerf,
-           const std::string& output_dir, rosbag::Bag* output_bag);
+           const std::string& output_dir, rosbag::Bag* output_bag,
+           BoxInteractiveMarker* left_box, BoxInteractiveMarker* right_box);
 
   void Process(const sensor_msgs::Image::ConstPtr& rgb,
                const sensor_msgs::Image::ConstPtr& depth,
@@ -54,6 +57,9 @@ class Labeling {
   Nerf* nerf_;
   rosbag::Bag* output_bag_;
   std::string output_dir_;
+  BoxInteractiveMarker* left_box_;
+  BoxInteractiveMarker* right_box_;
+
   bool debug_;
   ros::NodeHandle nh_;
   ros::Publisher skeleton_pub_;
@@ -72,18 +78,9 @@ class Labeling {
   int frame_count_;
 };
 
-struct HandBoxCoords {
-  float min_x;
-  float max_x;
-  float min_y;
-  float max_y;
-  float min_z;
-  float max_z;
-};
-
-void ComputeHandMask(float4* points, int height, int width, const float min_x,
-                     const float max_x, const float min_y, const float max_y,
-                     const float min_z, const float max_z,
+void ComputeHandMask(float4* points, int height, int width,
+                     const HandBoxCoords& left_box,
+                     const HandBoxCoords& right_box,
                      const CameraData& camera_data,
                      const Eigen::Affine3f& l_forearm_pose,
                      const Eigen::Affine3f& r_forearm_pose, uint8_t* mask);
@@ -105,6 +102,11 @@ void HandBoxMarkers(const HandBoxCoords& hand_box,
                     const Eigen::Vector3f l_hand_pos,
                     const Eigen::Vector3f r_hand_pos,
                     visualization_msgs::MarkerArray* boxes);
+
+void SetInteractiveBoxToHandBox(const HandBoxCoords& hand_box,
+                                BoxInteractiveMarker* interactive_box);
+void GetInteractiveBox(BoxInteractiveMarker* interactive_box,
+                       HandBoxCoords* hand_box);
 
 void LabelWithReducedColorComponents(cv::Mat rgb, cv::Mat near_hand_mask,
                                      cv::Mat thermal_projected,

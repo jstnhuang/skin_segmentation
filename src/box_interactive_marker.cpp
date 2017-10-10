@@ -295,9 +295,9 @@ void BoxInteractiveMarker::MakeArrow(
                          &global_arrow_pose_tf);
 
   arrow->name = name_ + "-" + polarity + "_" + axis;
-  arrow->controls.push_back(control);
   arrow->header.frame_id = pose_stamped_.header.frame_id;
   global_arrow_pose_tf.ToPose(&arrow->pose);
+  arrow->controls.push_back(control);
   arrow->scale = 0.05;
 }
 }  // namespace skinseg

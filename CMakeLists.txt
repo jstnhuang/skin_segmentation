@@ -181,6 +181,7 @@ target_link_libraries(skin_segmentation_calibration
 cuda_add_library(skin_segmentation_labeling src/labeling.cpp src/labeling.cu)
 add_dependencies(skin_segmentation_labeling ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_labeling
+  skin_segmentation_box_interactive_marker
   skin_segmentation_opencv_utils
   skin_segmentation_projection
   skin_segmentation_nerf
@@ -269,6 +270,7 @@ add_executable(skin_segmentation_label_data_main src/label_data_main.cpp)
 set_target_properties(skin_segmentation_label_data_main PROPERTIES OUTPUT_NAME label_data PREFIX "")
 add_dependencies(skin_segmentation_label_data_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_label_data_main
+  skin_segmentation_box_interactive_marker
   skin_segmentation_load_configs
   skin_segmentation_labeling
   skin_segmentation_nerf

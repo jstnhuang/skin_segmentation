@@ -10,6 +10,7 @@
 #include "Eigen/Dense"
 #include "boost/algorithm/string.hpp"
 #include "camera_calibration_parsers/parse.h"
+#include "interactive_markers/interactive_marker_server.h"
 #include "message_filters/cache.h"
 #include "message_filters/subscriber.h"
 #include "message_filters/sync_policies/approximate_time.h"
@@ -25,6 +26,7 @@
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
 
+#include "skin_segmentation/box_interactive_marker.h"
 #include "skin_segmentation/constants.h"
 #include "skin_segmentation/labeling.h"
 #include "skin_segmentation/load_configs.h"
@@ -93,7 +95,13 @@ int main(int argc, char** argv) {
     output_dir = argv[2];
   }
 
-  skinseg::Labeling labeling(projection, &nerf, output_dir, output_bag);
+  // Build hand box servers
+  interactive_markers::InteractiveMarkerServer im_server("hands", "", true);
+  skinseg::BoxInteractiveMarker left_box("left", &im_server);
+  skinseg::BoxInteractiveMarker right_box("right", &im_server);
+
+  skinseg::Labeling labeling(projection, &nerf, output_dir, output_bag,
+                             &left_box, &right_box);
 
   message_filters::Cache<Image> rgb_cache(100);
   message_filters::Cache<Image> depth_cache(100);
