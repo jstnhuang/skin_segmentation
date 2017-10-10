@@ -190,42 +190,9 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   left_box_->set_pose_stamped(left_ps);
   right_box_->set_pose_stamped(right_ps);
 
-  cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
-  HandBoxCoords left_box_coords;
-  GetInteractiveBox(left_box_, &left_box_coords);
-  HandBoxCoords right_box_coords;
-  GetInteractiveBox(right_box_, &right_box_coords);
-  ComputeHandMask(points, rgb_rows, rgb_cols, left_box_coords, right_box_coords,
-                  camera_data_, l_matrix, r_matrix, near_hand_mask.data);
-
-  // Try to find a threshold that separates skin from clothing.
-  if (thermal_threshold_ == 0) {
-    cv::Mat person(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
-    thermal_projected.copyTo(person, near_hand_mask);
-
-    cv::Mat definite_hand_mask = person > 3200;
-
-    cv::Mat person_8u(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
-    person.convertTo(person_8u, CV_8UC1, 1 / 255.0);
-    thermal_threshold_ = 255 * otsu_8u_with_mask(person_8u, definite_hand_mask);
-    if (thermal_threshold_ > 0) {
-      ROS_INFO("Threshold: %f", thermal_threshold_);
-    } else {
-      ROS_ERROR("Unable to find good threshold, skipping");
-      return;
-    }
-  }
-
   cv_bridge::CvImageConstPtr rgb_bridge =
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
   cv_bridge::CvImageConstPtr depth_bridge = cv_bridge::toCvShare(depth);
-
-  if (debug_) {
-    // visualization_msgs::MarkerArray boxes;
-    // HandBoxMarkers(hand_box, l_matrix, r_matrix, l_hand_pos, r_hand_pos,
-    //               &boxes);
-    // skeleton_pub_.publish(boxes);
-  }
 
   // If time skew is too great, skip this frame
   double thermal_depth_skew =
@@ -240,102 +207,135 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     return;
   }
 
-  if (debug_) {
-    cv::namedWindow("RGB hands");
-    cv::Mat rgb_hands;
-    rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
-    cv::imshow("RGB hands", rgb_hands);
+  ++frame_count_;
 
-    cv::namedWindow("Thermal hands");
-    cv::Mat thermal_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
-    thermal_projected.copyTo(thermal_hands, near_hand_mask);
-    cv::Mat thermal_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.5));
-    cv::normalize(thermal_hands, thermal_normalized, 0, 1, cv::NORM_MINMAX,
-                  CV_32F, thermal_hands != 0);
-    cv::imshow("Thermal hands", thermal_normalized);
-  }
-
-  double thermal_threshold;
-  ros::param::param("thermal_threshold", thermal_threshold, 0.0);
-  if (thermal_threshold != 0) {
-    thermal_threshold_ = thermal_threshold;
-  }
-
-  // Labeling
   cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
-  if (labeling_algorithm_ == kThermal) {
-    LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
-                     thermal_threshold_, labels);
-  } else if (labeling_algorithm_ == kGrabCut) {
-    LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
-                     near_hand_mask, thermal_threshold_, labels);
-  } else if (labeling_algorithm_ == kColorHistogram) {
-    LabelWithReducedColorComponents(rgb_bridge->image, near_hand_mask,
-                                    thermal_projected, thermal_threshold_,
-                                    labels);
-  } else if (labeling_algorithm_ == kFloodFill) {
-    LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
-                       thermal_threshold_, debug_, labels);
-  } else if (labeling_algorithm_ == kBox) {
-    LabelWithBox(points, near_hand_mask, rgb_rows, rgb_cols, l_hand_pos,
-                 r_hand_pos, debug_, labels);
-  } else {
-    ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
-                       labeling_algorithm_.c_str());
-  }
-
-  delete[] points;
-
-  // Visualization
   cv_bridge::CvImage labels_bridge(
       rgb->header, sensor_msgs::image_encodings::TYPE_8UC1, labels);
 
-  cv::Mat overlay(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(150, 150, 150));
-  rgb_bridge->image.copyTo(overlay, depth_bridge->image != 0);
-  overlay.setTo(cv::Scalar(0, 255, 0), labels != 0);
+  char user_key = ' ';
+  while (user_key != 'y' && user_key != 'n') {
+    // Compute pixels near the hand
+    cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
+    HandBoxCoords left_box_coords;
+    GetInteractiveBox(left_box_, &left_box_coords);
+    HandBoxCoords right_box_coords;
+    GetInteractiveBox(right_box_, &right_box_coords);
+    ComputeHandMask(points, rgb_rows, rgb_cols, left_box_coords,
+                    right_box_coords, camera_data_, l_matrix, r_matrix,
+                    near_hand_mask.data);
 
-  cv_bridge::CvImage overlay_bridge(
-      rgb->header, sensor_msgs::image_encodings::BGR8, overlay);
-  if (debug_) {
-    sensor_msgs::Image::Ptr msg = overlay_bridge.toImageMsg();
-    msg->header.stamp = ros::Time::now();
-    overlay_pub_.publish(msg);
-  }
+    // Try to find a threshold that separates skin from clothing.
+    if (thermal_threshold_ == 0) {
+      cv::Mat person(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
+      thermal_projected.copyTo(person, near_hand_mask);
 
-  if (debug_) {
-    std::stringstream ss;
-    ss << "Time skews: T-D: " << std::setprecision(3) << thermal_depth_skew
-       << ", C-D: " << std::setprecision(3) << rgb_depth_skew
-       << ", T-C: " << std::setprecision(3) << thermal_rgb_skew;
-    std::string text(ss.str());
-    float abs_td_skew = fabs(thermal_depth_skew);
-    float abs_rd_skew = fabs(rgb_depth_skew);
-    float abs_tr_skew = fabs(thermal_rgb_skew);
-    if (abs_td_skew < 0.005 && abs_rd_skew < 0.005 && abs_tr_skew < 0.005) {
-      cv::Scalar green(0, 255, 0);
-      cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
-                  0.5, green);
-    } else if (abs_td_skew < 0.01 && abs_rd_skew < 0.01 && abs_tr_skew < 0.01) {
-      cv::Scalar yellow(0, 255, 255);
-      cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
-                  0.5, yellow);
-    } else {
-      cv::Scalar red(0, 0, 255);
-      cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
-                  0.5, red);
+      cv::Mat definite_hand_mask = person > 3200;
+
+      cv::Mat person_8u(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
+      person.convertTo(person_8u, CV_8UC1, 1 / 255.0);
+      thermal_threshold_ =
+          255 * otsu_8u_with_mask(person_8u, definite_hand_mask);
+      if (thermal_threshold_ > 0) {
+        ROS_INFO("Threshold: %f", thermal_threshold_);
+      } else {
+        ROS_ERROR("Unable to find good threshold, skipping");
+        return;
+      }
     }
 
-    cv::namedWindow("Label overlay");
-    cv::imshow("Label overlay", overlay);
-  }
+    if (debug_) {
+      cv::namedWindow("RGB hands");
+      cv::Mat rgb_hands;
+      rgb_bridge->image.copyTo(rgb_hands, near_hand_mask);
+      cv::imshow("RGB hands", rgb_hands);
 
-  ++frame_count_;
-  if (debug_) {
-    char user_key = (char)cv::waitKey(0);
+      cv::namedWindow("Thermal hands");
+      cv::Mat thermal_hands(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
+      thermal_projected.copyTo(thermal_hands, near_hand_mask);
+      cv::Mat thermal_normalized(rgb_rows, rgb_cols, CV_32F, cv::Scalar(0.5));
+      cv::normalize(thermal_hands, thermal_normalized, 0, 1, cv::NORM_MINMAX,
+                    CV_32F, thermal_hands != 0);
+      cv::imshow("Thermal hands", thermal_normalized);
+    }
+
+    double thermal_threshold;
+    ros::param::param("thermal_threshold", thermal_threshold, 0.0);
+    if (thermal_threshold != 0) {
+      thermal_threshold_ = thermal_threshold;
+    }
+
+    // Labeling
+    if (labeling_algorithm_ == kThermal) {
+      LabelWithThermal(thermal_projected, near_hand_mask, rgb_rows, rgb_cols,
+                       thermal_threshold_, labels);
+    } else if (labeling_algorithm_ == kGrabCut) {
+      LabelWithGrabCut(rgb, rgb->height, rgb->width, thermal_projected,
+                       near_hand_mask, thermal_threshold_, labels);
+    } else if (labeling_algorithm_ == kColorHistogram) {
+      LabelWithReducedColorComponents(rgb_bridge->image, near_hand_mask,
+                                      thermal_projected, thermal_threshold_,
+                                      labels);
+    } else if (labeling_algorithm_ == kFloodFill) {
+      LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
+                         thermal_threshold_, debug_, labels);
+    } else if (labeling_algorithm_ == kBox) {
+      LabelWithBox(points, near_hand_mask, rgb_rows, rgb_cols, l_hand_pos,
+                   r_hand_pos, debug_, labels);
+    } else {
+      ROS_ERROR_THROTTLE(1, "Unknown labeling algorithm %s",
+                         labeling_algorithm_.c_str());
+    }
+
+    // Visualization
+    cv::Mat overlay(rgb_rows, rgb_cols, CV_8UC3, cv::Scalar(150, 150, 150));
+    rgb_bridge->image.copyTo(overlay, depth_bridge->image != 0);
+    overlay.setTo(cv::Scalar(0, 255, 0), labels != 0);
+
+    cv_bridge::CvImage overlay_bridge(
+        rgb->header, sensor_msgs::image_encodings::BGR8, overlay);
+    if (debug_) {
+      sensor_msgs::Image::Ptr msg = overlay_bridge.toImageMsg();
+      msg->header.stamp = ros::Time::now();
+      overlay_pub_.publish(msg);
+    }
+
+    if (debug_) {
+      std::stringstream ss;
+      ss << "Time skews: T-D: " << std::setprecision(3) << thermal_depth_skew
+         << ", C-D: " << std::setprecision(3) << rgb_depth_skew
+         << ", T-C: " << std::setprecision(3) << thermal_rgb_skew;
+      std::string text(ss.str());
+      float abs_td_skew = fabs(thermal_depth_skew);
+      float abs_rd_skew = fabs(rgb_depth_skew);
+      float abs_tr_skew = fabs(thermal_rgb_skew);
+      if (abs_td_skew < 0.005 && abs_rd_skew < 0.005 && abs_tr_skew < 0.005) {
+        cv::Scalar green(0, 255, 0);
+        cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
+                    0.5, green);
+      } else if (abs_td_skew < 0.01 && abs_rd_skew < 0.01 &&
+                 abs_tr_skew < 0.01) {
+        cv::Scalar yellow(0, 255, 255);
+        cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
+                    0.5, yellow);
+      } else {
+        cv::Scalar red(0, 0, 255);
+        cv::putText(overlay, text, cv::Point(0, 20), cv::FONT_HERSHEY_SIMPLEX,
+                    0.5, red);
+      }
+
+      cv::namedWindow("Label overlay");
+      cv::imshow("Label overlay", overlay);
+    }
+
+    user_key = (char)cv::waitKey(0);
     if (user_key == 'n') {
       return;
+    } else if (user_key == 'y') {
+      break;
     }
   }
+  delete[] points;
 
   if (output_bag_ != NULL) {
     output_bag_->write(kRgbTopic, rgb->header.stamp, rgb);
@@ -344,8 +344,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     output_bag_->write(kDepthTopic, rgb->header.stamp, depth_out);
     output_bag_->write(kLabelsTopic, rgb->header.stamp,
                        labels_bridge.toImageMsg());
-    output_bag_->write(kLabelOverlayTopic, rgb->header.stamp,
-                       overlay_bridge.toImageMsg());
+    // output_bag_->write(kLabelOverlayTopic, rgb->header.stamp,
+    //                   overlay_bridge.toImageMsg());
   }
   if (output_dir_ != "") {
     std::stringstream output_ss;
