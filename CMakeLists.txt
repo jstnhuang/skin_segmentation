@@ -10,7 +10,9 @@ project(skin_segmentation)
 find_package(catkin REQUIRED COMPONENTS
   camera_calibration_parsers
   cv_bridge
+  geometry_msgs
   image_geometry
+  interactive_markers
   message_filters
   message_generation
   nerf_b
@@ -21,6 +23,7 @@ find_package(catkin REQUIRED COMPONENTS
   sensor_msgs
   tf
   tf_conversions
+  transform_graph
   visualization_msgs
 )
 
@@ -161,6 +164,12 @@ include_directories(
 )
 
 ## Declare a C++ library
+add_library(skin_segmentation_box_interactive_marker src/box_interactive_marker.cpp)
+add_dependencies(skin_segmentation_box_interactive_marker ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_box_interactive_marker
+  ${catkin_LIBRARIES}
+)
+
 add_library(skin_segmentation_calibration src/calibration.cpp)
 add_dependencies(skin_segmentation_calibration ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_calibration
@@ -223,6 +232,14 @@ target_link_libraries(skin_segmentation_thresholding
 )
 
 ## Declare a C++ executable
+add_executable(skin_segmentation_box_interactive_marker_demo src/box_interactive_marker_demo.cpp)
+set_target_properties(skin_segmentation_box_interactive_marker_demo PROPERTIES OUTPUT_NAME box_interactive_marker_demo PREFIX "")
+add_dependencies(skin_segmentation_box_interactive_marker_demo ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_box_interactive_marker_demo
+  skin_segmentation_box_interactive_marker
+  ${catkin_LIBRARIES}
+)
+
 add_executable(skin_segmentation_calibration_capture src/calibration_capture.cpp)
 set_target_properties(skin_segmentation_calibration_capture PROPERTIES OUTPUT_NAME calibration_capture PREFIX "")
 add_dependencies(skin_segmentation_calibration_capture ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
