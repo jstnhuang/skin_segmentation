@@ -61,14 +61,18 @@ int main(int argc, char** argv) {
   // Hard-coded extrinsic calibration.
   Eigen::Vector3d translation;
   // translation << 0.00021494608, -0.035, 0.012;
-  translation << -0.00091294711, -0.040564451, -0.025354201;
+  // translation << -0.00091294711, -0.040564451, -0.025354201;
+  translation << 0.0032690763, -0.035865549, -0.010856843;
   Eigen::Affine3d thermal_in_rgb;
   thermal_in_rgb.setIdentity();
   Eigen::Matrix3d rotation;
   // rotation << 0.99989849, -0.00030364806, -0.004522502, 0.00056054816,
   //    0.99789572, 0.0638135, 0.004517816, -0.063812457, 0.99781871;
-  rotation << 0.99974662, -0.0035861803, -0.0024226252, 0.0036612949, 0.9975068,
-      0.06543088, 0.0023200796, -0.065455951, 0.99737251;
+  // rotation << 0.99974662, -0.0035861803, -0.0024226252, 0.0036612949,
+  // 0.9975068,
+  //    0.06543088, 0.0023200796, -0.065455951, 0.99737251;
+  rotation << 0.99979681, 0.002344504, -0.0088005587, -0.001684363, 0.9967131,
+      0.077537879, 0.0088948328, -0.077511609, 0.99654448;
   thermal_in_rgb.translate(translation);
   thermal_in_rgb.rotate(rotation);
   Eigen::Affine3d rgb_in_thermal = thermal_in_rgb.inverse();
