@@ -8,8 +8,9 @@ Panels:
         - /Status1
         - /Thermal registered cloud1/Auto Size1
         - /MarkerArray1/Namespaces1
-        - /DepthCloud1/Auto Size1
+        - /Overlay depth cloud1/Auto Size1
         - /InteractiveMarkers1/Status1
+        - /Color depth cloud1/Auto Size1
       Splitter Ratio: 0.5
     Tree Height: 843
   - Class: rviz/Selection
@@ -152,7 +153,7 @@ Visualization Manager:
       Marker Topic: /skeleton
       Name: MarkerArray
       Namespaces:
-        "": true
+        {}
       Queue Size: 100
       Value: true
     - Class: rviz/Image
@@ -204,7 +205,7 @@ Visualization Manager:
       Max Intensity: 4096
       Min Color: 0; 0; 0
       Min Intensity: 0
-      Name: DepthCloud
+      Name: Overlay depth cloud
       Occlusion Compensation:
         Occlusion Time-Out: 30
         Value: false
@@ -226,6 +227,44 @@ Visualization Manager:
       Show Visual Aids: false
       Update Topic: /hands/update
       Value: true
+    - Alpha: 1
+      Auto Size:
+        Auto Size Factor: 1
+        Value: true
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz/DepthCloud
+      Color: 255; 255; 255
+      Color Image Topic: /camera/rgb/image_rect_color
+      Color Transformer: RGB8
+      Color Transport Hint: raw
+      Decay Time: 0
+      Depth Map Topic: /camera/depth_registered/image
+      Depth Map Transport Hint: raw
+      Enabled: false
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: Color depth cloud
+      Occlusion Compensation:
+        Occlusion Time-Out: 30
+        Value: false
+      Position Transformer: XYZ
+      Queue Size: 5
+      Selectable: true
+      Size (Pixels): 3
+      Style: Flat Squares
+      Topic Filter: true
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: false
   Enabled: true
   Global Options:
     Background Color: 163; 163; 163
@@ -250,22 +289,22 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 3.23587
+      Distance: 4.49242
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.06
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 1.96365
-        Y: -0.125972
-        Z: 0.81651
+        X: 1.72873
+        Y: 0.271383
+        Z: 0.859141
       Name: Current View
       Near Clip Distance: 0.01
-      Pitch: 0.564796
+      Pitch: 0.329796
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.27983
+      Yaw: 3.24484
     Saved: ~
 Window Geometry:
   Depth image:
