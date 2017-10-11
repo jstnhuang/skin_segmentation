@@ -225,6 +225,12 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
                     right_box_coords, camera_data_, l_matrix, r_matrix,
                     near_hand_mask.data);
 
+    double thermal_threshold;
+    ros::param::param("thermal_threshold", thermal_threshold, 0.0);
+    if (thermal_threshold != 0) {
+      thermal_threshold_ = thermal_threshold;
+    }
+
     // Try to find a threshold that separates skin from clothing.
     if (thermal_threshold_ == 0) {
       cv::Mat person(rgb_rows, rgb_cols, CV_16UC1, cv::Scalar(0));
@@ -257,12 +263,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       cv::normalize(thermal_hands, thermal_normalized, 0, 1, cv::NORM_MINMAX,
                     CV_32F, thermal_hands != 0);
       cv::imshow("Thermal hands", thermal_normalized);
-    }
-
-    double thermal_threshold;
-    ros::param::param("thermal_threshold", thermal_threshold, 0.0);
-    if (thermal_threshold != 0) {
-      thermal_threshold_ = thermal_threshold;
     }
 
     // Labeling
