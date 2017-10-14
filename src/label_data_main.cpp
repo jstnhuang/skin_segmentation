@@ -44,6 +44,8 @@ typedef message_filters::sync_policies::ApproximateTime<Image, Image, Image>
 int main(int argc, char** argv) {
   ros::init(argc, argv, "skin_segmentation_label_data");
   ros::NodeHandle nh;
+  ros::AsyncSpinner spinner(2);
+  spinner.start();
 
   if (argc < 3) {
     std::cout
@@ -175,6 +177,7 @@ int main(int argc, char** argv) {
   if (output_bag != NULL) {
     output_bag->close();
   }
+  spinner.stop();
 
   return 0;
 }

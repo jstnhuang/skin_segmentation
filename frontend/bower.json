@@ -4,7 +4,8 @@
   "dependencies": {
     "polymer": "Polymer/polymer#^2.0.0",
     "ros-topic": "jstnhuang/ros-topic#^1.0.0",
-    "paper-slider": "PolymerElements/paper-slider#^2.0.2"
+    "paper-slider": "PolymerElements/paper-slider#^2.0.2",
+    "iron-flex-layout": "PolymerElements/iron-flex-layout#^2.0.0"
   },
   "devDependencies": {
     "web-component-tester": "Polymer/web-component-tester#^6.0.0",

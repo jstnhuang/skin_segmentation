@@ -1,13 +1,54 @@
 <link rel="import" href="../../bower_components/polymer/polymer-element.html">
+<link rel="import" href="../../bower_components/paper-slider/paper-slider.html">
+<link rel="import" href="../../bower_components/ros-topic/ros-topic.html">
+<link rel="import" href="../../bower_components/ros-websocket/ros-websocket.html">
+<link rel="import" href="../../bower_components/iron-flex-layout/iron-flex-layout-classes.html">
 
 <dom-module id="hands-app">
   <template>
+    <style include="iron-flex">
     <style>
       :host {
         display: block;
       }
+      .control {
+        margin-right: 20px;
+        width: 500px;
+        float: left;
+      }
+      .control paper-slider {
+        width: 100%;
+        --paper-slider-input {
+          width: 100px;
+        }
+      }
     </style>
-    <h2>Hello [[prop1]]!</h2>
+    <ros-websocket auto ros="{{ros}}"
+      on-connection="handleConnect"
+      on-close="handleClose"
+      on-error="handleError"
+      ></ros-websocket>
+    <ros-topic auto
+      last-message="{{jointStates}}"
+      topic="/nerf_joint_states"
+      ros="{{ros}}"
+      msg-type="skin_segmentation_msgs/NerfJointStates"
+    ></ros-topic>
+    <ros-topic
+      id="controlsPub"
+      topic="/nerf_controls"
+      ros="{{ros}}"
+      msg-type="skin_segmentation_msgs/NerfJointStates"
+    ></ros-topic>
+    <p>[[status]]</p>
+    <template is="dom-repeat" items="{{jointStates.values}}">
+      <div class="control horizontal layout center">
+        <label for="[[jointName(index)]]">[[jointName(index)]]</label>
+        <paper-slider name="[[jointName(index)]]" min="[[jointMin(index)]]" max="[[jointMax(index)]]" value="{{item}}"
+          editable pin step="0.01"
+          on-change="handleChange"></paper-slider>
+        </div>
+    </template>
   </template>
 
   <script>
@@ -18,12 +59,29 @@
     class HandsApp extends Polymer.Element {
       static get is() { return 'hands-app'; }
       static get properties() {
-        return {
-          prop1: {
-            type: String,
-            value: 'hands-app'
-          }
-        };
+        return { };
+      }
+
+      handleConnect() {
+        this.status = "Connected to the websocket server.";
+      }
+      handleClose() {
+        this.status = "Closed connection to websocket server.";
+      }
+      handleError() {
+        this.status = "Error connecting to websocket server!";
+      }
+      jointName(index) {
+        return this.jointStates.names[index];
+      }
+      jointMin(index) {
+        return this.jointStates.mins[index];
+      }
+      jointMax(index) {
+        return this.jointStates.maxs[index];
+      }
+      handleChange() {
+        this.$.controlsPub.publish(this.jointStates);
       }
     }
 
