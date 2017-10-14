@@ -116,25 +116,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   float4* points = new float4[rgb_cols * rgb_rows];
   projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected,
                                   points);
-  // Get hand poses
-  Eigen::Affine3f l_matrix = nerf_->GetJointPose(kNerfLForearmRotJoint);
-  Eigen::Affine3f r_matrix = nerf_->GetJointPose(kNerfRForearmRotJoint);
-
-  // Update interactive marker box
-  geometry_msgs::PoseStamped left_ps;
-  Eigen::Affine3d left_matrix_d = l_matrix.cast<double>();
-  left_ps.header.frame_id = depth->header.frame_id;
-  transform_graph::Transform left_tf(left_matrix_d.matrix());
-  left_tf.ToPose(&left_ps.pose);
-
-  geometry_msgs::PoseStamped right_ps;
-  right_ps.header.frame_id = depth->header.frame_id;
-  Eigen::Affine3d right_matrix_d = r_matrix.cast<double>();
-  transform_graph::Transform right_tf(right_matrix_d.matrix());
-  right_tf.ToPose(&right_ps.pose);
-
-  left_box_->set_pose_stamped(left_ps);
-  right_box_->set_pose_stamped(right_ps);
 
   cv_bridge::CvImageConstPtr rgb_bridge =
       cv_bridge::toCvShare(rgb, sensor_msgs::image_encodings::BGR8);
@@ -180,6 +161,26 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
     }
 
     // Compute pixels near the hand
+    // Get hand poses
+    Eigen::Affine3f l_matrix = nerf_->GetJointPose(kNerfLForearmRotJoint);
+    Eigen::Affine3f r_matrix = nerf_->GetJointPose(kNerfRForearmRotJoint);
+
+    // Update interactive marker box
+    geometry_msgs::PoseStamped left_ps;
+    Eigen::Affine3d left_matrix_d = l_matrix.cast<double>();
+    left_ps.header.frame_id = depth->header.frame_id;
+    transform_graph::Transform left_tf(left_matrix_d.matrix());
+    left_tf.ToPose(&left_ps.pose);
+
+    geometry_msgs::PoseStamped right_ps;
+    right_ps.header.frame_id = depth->header.frame_id;
+    Eigen::Affine3d right_matrix_d = r_matrix.cast<double>();
+    transform_graph::Transform right_tf(right_matrix_d.matrix());
+    right_tf.ToPose(&right_ps.pose);
+
+    left_box_->set_pose_stamped(left_ps);
+    right_box_->set_pose_stamped(right_ps);
+
     cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
     HandBoxCoords left_box_coords;
     GetInteractiveBox(left_box_, &left_box_coords);
