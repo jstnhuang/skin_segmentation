@@ -118,41 +118,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   projection_.ProjectThermalOnRgb(rgb, depth, thermal, thermal_projected,
                                   points);
   // Get hand poses
-  const nerf::DualQuaternion* joint_poses =
-      nerf_->model_instance->getHostJointPose();
-  int l_index =
-      nerf_->model->getKinematics()->getJointIndex(kNerfLForearmRotJoint);
-  int r_index =
-      nerf_->model->getKinematics()->getJointIndex(kNerfRForearmRotJoint);
-  int l_hand_index =
-      nerf_->model->getKinematics()->getJointIndex(kNerfLMiddleFinger1Joint);
-  int r_hand_index =
-      nerf_->model->getKinematics()->getJointIndex(kNerfRMiddleFinger1Joint);
-  nerf::DualQuaternion l_forearm_pose = joint_poses[l_index];
-  nerf::DualQuaternion r_forearm_pose = joint_poses[r_index];
-  nerf::DualQuaternion l_hand_pose = joint_poses[l_hand_index];
-  nerf::DualQuaternion r_hand_pose = joint_poses[r_hand_index];
-  l_forearm_pose.normalize();
-  r_forearm_pose.normalize();
-  Eigen::Affine3f l_matrix(l_forearm_pose.ToMatrix());
-  Eigen::Matrix4f r_pose_mat = r_forearm_pose.ToMatrix();
-  Eigen::Matrix3f r_pose_rot = r_pose_mat.topLeftCorner(3, 3);
-  r_pose_rot.col(0) *= -1;
-  r_pose_rot.col(1) = r_pose_rot.col(2).cross(r_pose_rot.col(0));
-  r_pose_mat.topLeftCorner(3, 3) = r_pose_rot;
-  Eigen::Affine3f r_matrix(r_pose_mat);
+  Eigen::Affine3f l_matrix = nerf_->GetJointPose(kNerfLForearmRotJoint);
+  Eigen::Affine3f r_matrix = nerf_->GetJointPose(kNerfRForearmRotJoint);
 
-  Eigen::Vector3f l_hand_pos =
-      Eigen::Affine3f(l_hand_pose.ToMatrix()).translation();
-  Eigen::Vector3f r_hand_pos =
-      Eigen::Affine3f(r_hand_pose.ToMatrix()).translation();
-
-  float model_scale = nerf_->model_instance->getScale();
-  l_matrix.translation() *= model_scale;
-  r_matrix.translation() *= model_scale;
-  l_hand_pos *= model_scale;
-  r_hand_pos *= model_scale;
-
+  // Update interactive marker box
   geometry_msgs::PoseStamped left_ps;
   Eigen::Affine3d left_matrix_d = l_matrix.cast<double>();
   left_ps.header.frame_id = depth->header.frame_id;
@@ -190,6 +159,8 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv::Mat labels(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
   cv_bridge::CvImage labels_bridge(
       rgb->header, sensor_msgs::image_encodings::TYPE_8UC1, labels);
+
+  float model_scale = nerf_->model_instance->getScale();
 
   char user_key = ' ';
   while (user_key != 'y' && user_key != 'n') {
@@ -278,6 +249,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
       LabelWithFloodFill(rgb_bridge->image, near_hand_mask, thermal_projected,
                          thermal_threshold_, debug_, labels);
     } else if (labeling_algorithm_ == kBox) {
+      Eigen::Vector3f l_hand_pos =
+          nerf_->GetJointPose(kNerfLMiddleFinger1Joint).translation();
+      Eigen::Vector3f r_hand_pos =
+          nerf_->GetJointPose(kNerfRMiddleFinger1Joint).translation();
       LabelWithBox(points, near_hand_mask, rgb_rows, rgb_cols, l_hand_pos,
                    r_hand_pos, debug_, labels);
     } else {

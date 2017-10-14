@@ -1,5 +1,6 @@
 #include "skin_segmentation/nerf.h"
 
+#include "Eigen/Dense"
 #include "geometry/dual_quaternion.h"
 #include "model/model.h"
 #include "model/model_instance.h"
@@ -26,8 +27,15 @@ void Nerf::PublishJointStates() { ROS_ERROR("Not implemented"); }
 
 void Nerf::PublishVisualization() { ROS_ERROR("Not implemented"); }
 
-void Nerf::GetJointPose(const std::string& joint_name) {
-  ROS_ERROR("Not implemented");
+Eigen::Affine3f Nerf::GetJointPose(const std::string& joint_name) {
+  float model_scale = model_instance->getScale();
+  const nerf::DualQuaternion* joint_poses = model_instance->getHostJointPose();
+  int index = model->getKinematics()->getJointIndex(joint_name);
+  nerf::DualQuaternion joint_pose = joint_poses[index];
+  // joint_pose.normalize(); // Probably not needed.
+  Eigen::Affine3f matrix(joint_pose.ToMatrix());
+  matrix.translation() *= model_scale;
+  return matrix;
 }
 
 void Nerf::Step(const sensor_msgs::Image::ConstPtr& rgb,

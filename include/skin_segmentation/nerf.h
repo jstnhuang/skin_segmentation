@@ -1,6 +1,7 @@
 #ifndef _SKINSEG_NERF_H_
 #define _SKINSEG_NERF_H_
 
+#include "Eigen/Dense"
 #include "model/model.h"
 #include "model/model_instance.h"
 #include "observation/ros_observation.h"
@@ -20,7 +21,7 @@ class Nerf {
   void Update(const skin_segmentation_msgs::NerfJointStates& joint_states);
   void PublishJointStates();
   void PublishVisualization();
-  void GetJointPose(const std::string& joint_name);
+  Eigen::Affine3f GetJointPose(const std::string& joint_name);
   void Step(const sensor_msgs::Image::ConstPtr& rgb,
             const sensor_msgs::Image::ConstPtr& depth);
 
