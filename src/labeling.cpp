@@ -109,26 +109,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   nerf_->observation->advance();
   nerf_->optimizer->optimize(nerf_->opt_parameters);
 
-  if (debug_) {
-    visualization_msgs::MarkerArray skeleton;
-    SkeletonMarkerArray(nerf_, model_scale, &skeleton);
-
-    ros::Time now = ros::Time::now();
-    sensor_msgs::Image rgb_now = *rgb;
-    rgb_now.header.stamp = now;
-    sensor_msgs::Image depth_now = *depth;
-    depth_now.header.stamp = now;
-    rgb_pub_.publish(rgb_now);
-    depth_pub_.publish(depth_now);
-    sensor_msgs::Image thermal_now = *thermal;
-    thermal_now.header.stamp = now;
-    thermal_pub_.publish(thermal_now);
-
-    rgbd_info_.header.stamp = now;
-    depth_info_pub_.publish(rgbd_info_);
-    skeleton_pub_.publish(skeleton);
-  }
-
   const int rgb_rows = rgb->height;
   const int rgb_cols = rgb->width;
 
@@ -215,6 +195,26 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   char user_key = ' ';
   while (user_key != 'y' && user_key != 'n') {
+    if (debug_) {
+      visualization_msgs::MarkerArray skeleton;
+      SkeletonMarkerArray(nerf_, model_scale, &skeleton);
+
+      ros::Time now = ros::Time::now();
+      sensor_msgs::Image rgb_now = *rgb;
+      rgb_now.header.stamp = now;
+      sensor_msgs::Image depth_now = *depth;
+      depth_now.header.stamp = now;
+      rgb_pub_.publish(rgb_now);
+      depth_pub_.publish(depth_now);
+      sensor_msgs::Image thermal_now = *thermal;
+      thermal_now.header.stamp = now;
+      thermal_pub_.publish(thermal_now);
+
+      rgbd_info_.header.stamp = now;
+      depth_info_pub_.publish(rgbd_info_);
+      skeleton_pub_.publish(skeleton);
+    }
+
     // Compute pixels near the hand
     cv::Mat near_hand_mask(rgb_rows, rgb_cols, CV_8UC1, cv::Scalar(0));
     HandBoxCoords left_box_coords;
