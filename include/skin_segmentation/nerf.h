@@ -38,7 +38,7 @@ class Nerf {
 
 void BuildNerf(Nerf* nerf, float scale);
 
-void SkeletonMarkerArray(Nerf* nerf, float scale,
+void SkeletonMarkerArray(Nerf* nerf,
                          visualization_msgs::MarkerArray* marker_array);
 }  // namespace skinseg
 

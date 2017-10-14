@@ -25,7 +25,11 @@ void Nerf::Update(const skin_segmentation_msgs::NerfJointStates& joint_states) {
 
 void Nerf::PublishJointStates() { ROS_ERROR("Not implemented"); }
 
-void Nerf::PublishVisualization() { ROS_ERROR("Not implemented"); }
+void Nerf::PublishVisualization() {
+  visualization_msgs::MarkerArray skeleton;
+  SkeletonMarkerArray(this, &skeleton);
+  skeleton_pub_.publish(skeleton);
+}
 
 Eigen::Affine3f Nerf::GetJointPose(const std::string& joint_name) {
   float model_scale = model_instance->getScale();
@@ -162,8 +166,9 @@ void BuildNerf(Nerf* nerf, float model_scale) {
   nerf->opt_parameters.shapeResidualParameters.huberDelta = 1.f;
 }
 
-void SkeletonMarkerArray(Nerf* nerf, const float scale,
+void SkeletonMarkerArray(Nerf* nerf,
                          visualization_msgs::MarkerArray* marker_array) {
+  float scale = nerf->model_instance->getScale();
   const nerf::KinematicHierarchy* kh = nerf->model->getKinematics();
   const nerf::DualQuaternion* joint_poses =
       nerf->model_instance->getHostJointPose();

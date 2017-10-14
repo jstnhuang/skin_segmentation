@@ -62,7 +62,6 @@ class Labeling {
 
   bool debug_;
   ros::NodeHandle nh_;
-  ros::Publisher skeleton_pub_;
   ros::Publisher rgb_pub_;
   ros::Publisher depth_pub_;
   ros::Publisher depth_info_pub_;

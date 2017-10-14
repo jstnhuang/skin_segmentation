@@ -50,8 +50,6 @@ Labeling::Labeling(const Projection& projection, Nerf* nerf,
       right_box_(right_box),
       debug_(false),
       nh_(),
-      skeleton_pub_(
-          nh_.advertise<visualization_msgs::MarkerArray>("skeleton", 1, true)),
       rgb_pub_(nh_.advertise<sensor_msgs::Image>(kRgbTopic, 1, true)),
       depth_pub_(nh_.advertise<sensor_msgs::Image>(kDepthTopic, 1, true)),
       depth_info_pub_(
@@ -160,13 +158,10 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   cv_bridge::CvImage labels_bridge(
       rgb->header, sensor_msgs::image_encodings::TYPE_8UC1, labels);
 
-  float model_scale = nerf_->model_instance->getScale();
-
   char user_key = ' ';
   while (user_key != 'y' && user_key != 'n') {
     if (debug_) {
-      visualization_msgs::MarkerArray skeleton;
-      SkeletonMarkerArray(nerf_, model_scale, &skeleton);
+      nerf_->PublishVisualization();
 
       ros::Time now = ros::Time::now();
       sensor_msgs::Image rgb_now = *rgb;
@@ -181,7 +176,6 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
       rgbd_info_.header.stamp = now;
       depth_info_pub_.publish(rgbd_info_);
-      skeleton_pub_.publish(skeleton);
     }
 
     // Compute pixels near the hand
