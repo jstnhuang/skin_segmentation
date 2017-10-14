@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospack
   rospy
+  skin_segmentation_msgs
   sensor_msgs
   tf
   tf_conversions

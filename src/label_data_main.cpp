@@ -25,6 +25,8 @@
 #include "rosbag/view.h"
 #include "sensor_msgs/CameraInfo.h"
 #include "sensor_msgs/Image.h"
+#include "skin_segmentation_msgs/NerfJointStates.h"
+#include "visualization_msgs/MarkerArray.h"
 
 #include "skin_segmentation/box_interactive_marker.h"
 #include "skin_segmentation/constants.h"
@@ -81,12 +83,16 @@ int main(int argc, char** argv) {
   projection.set_debug(true);
 
   // Set up nerf person tracker
-  skinseg::Nerf nerf;
+  ros::Publisher nerf_joint_pub =
+      nh.advertise<skin_segmentation_msgs::NerfJointStates>("nerf_joint_states",
+                                                            1, true);
+  ros::Publisher skeleton_pub =
+      nh.advertise<visualization_msgs::MarkerArray>("skeleton", 1, true);
+  skinseg::Nerf nerf(nerf_joint_pub, skeleton_pub);
   float model_scale;
   ros::param::param("label_data_model_scale", model_scale, 0.92f);
   ROS_INFO("Model scale: %f", model_scale);
   skinseg::BuildNerf(&nerf, model_scale);
-  nerf.model_instance->setScale(model_scale);
 
   // Set up output
   std::string output_dir("");

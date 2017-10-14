@@ -104,10 +104,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   }
 
   // Step through nerf tracker
-  float model_scale = nerf_->model_instance->getScale();
-  nerf_->observation->Callback(rgb, depth);
-  nerf_->observation->advance();
-  nerf_->optimizer->optimize(nerf_->opt_parameters);
+  nerf_->Step(rgb, depth);
 
   const int rgb_rows = rgb->height;
   const int rgb_cols = rgb->width;
@@ -150,6 +147,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
   Eigen::Vector3f r_hand_pos =
       Eigen::Affine3f(r_hand_pose.ToMatrix()).translation();
 
+  float model_scale = nerf_->model_instance->getScale();
   l_matrix.translation() *= model_scale;
   r_matrix.translation() *= model_scale;
   l_hand_pos *= model_scale;

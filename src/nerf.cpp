@@ -5,6 +5,9 @@
 #include "model/model_instance.h"
 #include "observation/ros_observation.h"
 #include "optimization/optimization_parameters.h"
+#include "ros/ros.h"
+#include "sensor_msgs/Image.h"
+#include "skin_segmentation_msgs/NerfJointStates.h"
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
 
@@ -12,6 +15,28 @@
 #include "skin_segmentation/load_configs.h"
 
 namespace skinseg {
+Nerf::Nerf(const ros::Publisher& joint_pub, const ros::Publisher& skeleton_pub)
+    : joint_state_pub_(joint_pub), skeleton_pub_(skeleton_pub) {}
+
+void Nerf::Update(const skin_segmentation_msgs::NerfJointStates& joint_states) {
+  ROS_ERROR("Not implemented");
+}
+
+void Nerf::PublishJointStates() { ROS_ERROR("Not implemented"); }
+
+void Nerf::PublishVisualization() { ROS_ERROR("Not implemented"); }
+
+void Nerf::GetJointPose(const std::string& joint_name) {
+  ROS_ERROR("Not implemented");
+}
+
+void Nerf::Step(const sensor_msgs::Image::ConstPtr& rgb,
+                const sensor_msgs::Image::ConstPtr& depth) {
+  observation->Callback(rgb, depth);
+  observation->advance();
+  optimizer->optimize(opt_parameters);
+}
+
 void BuildNerf(Nerf* nerf, float model_scale) {
   bool run_neighbor_filter = true;
   float neighbor_filter_threshold = 0.02;
