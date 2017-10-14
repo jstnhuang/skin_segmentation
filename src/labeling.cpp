@@ -103,6 +103,7 @@ void Labeling::Process(const Image::ConstPtr& rgb, const Image::ConstPtr& depth,
 
   // Step through nerf tracker
   nerf_->Step(rgb, depth);
+  nerf_->PublishJointStates();
 
   const int rgb_rows = rgb->height;
   const int rgb_cols = rgb->width;

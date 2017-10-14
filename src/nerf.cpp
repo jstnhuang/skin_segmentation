@@ -2,6 +2,7 @@
 
 #include "Eigen/Dense"
 #include "geometry/dual_quaternion.h"
+#include "kinematics/kinematic_hierarchy.h"
 #include "model/model.h"
 #include "model/model_instance.h"
 #include "observation/ros_observation.h"
@@ -20,10 +21,28 @@ Nerf::Nerf(const ros::Publisher& joint_pub, const ros::Publisher& skeleton_pub)
     : joint_state_pub_(joint_pub), skeleton_pub_(skeleton_pub) {}
 
 void Nerf::Update(const skin_segmentation_msgs::NerfJointStates& joint_states) {
-  ROS_ERROR("Not implemented");
+  model_instance->setControls(joint_states.values.data());
+  PublishVisualization();
 }
 
-void Nerf::PublishJointStates() { ROS_ERROR("Not implemented"); }
+void Nerf::PublishJointStates() {
+  const float* host_controls = model_instance->getHostControls();
+  const nerf::KinematicHierarchy* kinematics = model->getKinematics();
+  const float2* control_limits = kinematics->getHostControlLimits();
+  int num_controls = model->getNumControls();
+  skin_segmentation_msgs::NerfJointStates joint_states;
+  joint_states.names.resize(num_controls);
+  joint_states.mins.resize(num_controls);
+  joint_states.maxs.resize(num_controls);
+  joint_states.values.resize(num_controls);
+  for (int i = 0; i < num_controls; ++i) {
+    joint_states.names[i] = kinematics->getControlName(i);
+    joint_states.mins[i] = control_limits[i].x;
+    joint_states.maxs[i] = control_limits[i].y;
+    joint_states.values[i] = host_controls[i];
+  }
+  joint_state_pub_.publish(joint_states);
+}
 
 void Nerf::PublishVisualization() {
   visualization_msgs::MarkerArray skeleton;

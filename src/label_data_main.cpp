@@ -94,6 +94,10 @@ int main(int argc, char** argv) {
   ROS_INFO("Model scale: %f", model_scale);
   skinseg::BuildNerf(&nerf, model_scale);
 
+  // Subscriber for nerf control UI
+  ros::Subscriber nerf_sub =
+      nh.subscribe("nerf_controls", 1, &skinseg::Nerf::Update, &nerf);
+
   // Set up output
   std::string output_dir("");
   rosbag::Bag* output_bag = NULL;
