@@ -235,7 +235,7 @@ void BoxInteractiveMarker::MakeArrow(
       marker.color.b = 0.5;
     }
   }
-  marker.color.a = 0.9;
+  marker.color.a = 0.5;
 
   tf::Quaternion arrow_q;
   geometry_msgs::Pose arrow_pose;
