@@ -49,7 +49,6 @@ int main(int argc, char** argv) {
 
   if (argc < 3) {
     std::cout
-        << "Usage: rosrun skin_segmentation label_data INPUT.bag OUTPUT.bag"
         << "Usage: rosrun skin_segmentation label_data INPUT.bag OUTPUT_DIR"
         << std::endl;
     return 1;
