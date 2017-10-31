@@ -1,5 +1,5 @@
 <launch>
   <include file="$(find rgbd_launch)/launch/kinect_frames.launch" />
   <node pkg="tf" type="static_transform_publisher" name="world_to_camera" args="0 0 1 0 0 0 world camera_link 100" />
-  <node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="0.0032690763 -0.035865549 -0.010856843 -0.03879607 -0.00442769 -0.00100809 0.99913142 camera_rgb_optical_frame thermal_camera_frame 100" />
+  <node pkg="tf" type="static_transform_publisher" name="thermal_extrinsic_calibration_publisher" args="-0.0088957613 -0.013507488 0.026747243 -0.0327559708 -0.00255958816 0.000639092140 0.999202708 camera_rgb_optical_frame thermal_camera_frame 100" />
 </launch>
