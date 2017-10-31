@@ -24,12 +24,12 @@ During data collection:
 - [ ] Run the camera drivers: `roslaunch skin_segmentation cameras.launch --screen`
 - [ ] Open RViz and visualize the `/rgb_chessboard` and `/thermal_chessboard` image topics
 - [ ] Heat the chessboard under the work lights for about 1 minute
-- [ ] Hold the chessboard in front of the cameras and run the calibration capture: `rosrun skin_segmentation calibration_capture ~/data.bag`
+- [ ] Position the chessboard in front of the cameras and run the calibration capture: `rosrun skin_segmentation calibration_capture ~/data.bag`
+- [ ] To capture an image, run `rosservice call /capture_calibration_images "{}"`
 - [ ] Capture ~30 images, with as much variation in the size, position, and skew of the chessboard as possible
 - [ ] Run the calibration: `rosrun skin_segmentation calibration ~/data.bag` (you will need to manually label the thermal chessboard corners)
 
 The calibration will output the intrinsics of both cameras and the frame of the thermal camera in the frame of the RGB camera (as a 4x4 `thermal_in_rgb` matrix).
-We recommend ignoring the RGB intrinsics as it won't be better than the factory calibration.
 
 ## Installation
 Requires CUDA to be installed (we are using CUDA 8, compatability 6.1).
