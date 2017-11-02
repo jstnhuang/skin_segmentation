@@ -1,5 +1,5 @@
 <launch>
-  <arg name="isboxalg" />
+  <arg name="isboxalg" value="false" />
 
   <param name="label_data_debug" value="true" />
   <param name="label_data_model_scale" value="0.92" />
