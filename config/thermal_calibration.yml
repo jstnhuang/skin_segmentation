@@ -4,7 +4,7 @@ camera_name: ici/ir_camera
 camera_matrix:
   rows: 3
   cols: 3
-  data: [731.7738741549465, 0, 319.5, 0, 730.8790622749515, 255.5, 0, 0, 1]
+  data: [736.5765256452136, 0, 319.5, 0, 730.2935179130864, 255.5, 0, 0, 1]
 distortion_model: rational_polynomial
 distortion_coefficients:
   rows: 1
@@ -17,4 +17,4 @@ rectification_matrix:
 projection_matrix:
   rows: 3
   cols: 4
-  data: [731.7738741549465, 0, 319.5, 0, 0, 730.8790622749515, 255.5, 0, 0, 0, 1, 0]
+  data: [736.5765256452136, 0, 319.5, 0, 0, 730.2935179130864, 255.5, 0, 0, 0, 1, 0]
