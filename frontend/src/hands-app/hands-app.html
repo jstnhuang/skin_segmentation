@@ -45,7 +45,7 @@
       <div class="control horizontal layout center">
         <label for="[[jointName(index)]]">[[jointName(index)]]</label>
         <paper-slider name="[[jointName(index)]]" min="[[jointMin(index)]]" max="[[jointMax(index)]]" value="{{item}}"
-          editable pin step="0.01"
+          editable pin step="[[stepSize(index)]]"
           on-change="handleChange"></paper-slider>
         </div>
     </template>
@@ -79,6 +79,9 @@
       }
       jointMax(index) {
         return this.jointStates.maxs[index];
+      }
+      stepSize(index) {
+        return (this.jointStates.maxs[index] - this.jointStates.mins[index]) / 1000;
       }
       handleChange() {
         this.$.controlsPub.publish(this.jointStates);
