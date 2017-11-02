@@ -19,6 +19,11 @@ During data collection:
 - Do not move your hands next to other exposed skin areas (arms, face).
 - Avoid holding objects between the camera and exposed skin areas (arms, face), as bad calibration can cause hot points behind objects to project onto the edges of objects.
 
+# Running the hand segmentation demo
+- [ ] Run the camera drivers: `roslaunch skin_segmentation cameras.launch --screen`
+- [ ] Open RViz and visualize with `config/thermal.rviz`
+- [ ] Run the hand segmentation demo: `source ~/venvs/tf/bin/activate; rosrun skin_segmentation hand_segmentation_demo.py /path/to/vgg16_fcn_rgbd_single_frame_hand_iter_100000.ckpt rgb:=/camera/rgb/image_rect_color depth_registered:=/camera/depth_registered/image`
+
 ## Thermal camera calibration procedure
 - [ ] Plug in the thermal camera
 - [ ] Run the camera drivers: `roslaunch skin_segmentation cameras.launch --screen`
