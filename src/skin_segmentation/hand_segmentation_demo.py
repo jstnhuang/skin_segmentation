@@ -43,7 +43,7 @@ class Demo(object):
 def main():
     rospy.init_node('hand_segmentation_demo')
     if len(sys.argv) < 2:
-        print 'Usage: hand_segmentation_demo model.ckpt rgb:=/camera/rgb/image_rect_color depth_registered:=/mera/depth_registered/image'
+        print 'Usage: hand_segmentation_demo model.ckpt rgb:=/camera/rgb/image_rect_color depth_registered:=/camera/depth_registered/image'
         return
 
     checkpoint_path = sys.argv[1]
@@ -57,7 +57,7 @@ def main():
     depth_sub = message_filters.Subscriber('depth_registered',
                                            sensor_msgs.msg.Image)
     queue_size = 1
-    slop_seconds = 0.1
+    slop_seconds = 0.05
     sync = message_filters.ApproximateTimeSynchronizer(
         [rgb_sub, depth_sub], queue_size, slop_seconds)
 
