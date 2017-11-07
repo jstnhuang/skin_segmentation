@@ -9,9 +9,11 @@ from hand_segmentation import HandSegmentation
 import cv2
 import cv_bridge
 import message_filters
+import numpy as np
 import rospy
 import sensor_msgs.msg
 import sys
+import time
 
 
 class Demo(object):
@@ -26,9 +28,13 @@ class Demo(object):
                 1, 'Unsupported depth type. Expected 16UC1, got {}'.format(
                     depth.encoding))
             return
+        
         rgb_cv = self._cv_bridge.imgmsg_to_cv2(rgb, 'bgr8')
         depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
-        labels = self._hand_segmentation.segment(rgb_cv, depth_cv)
+        labels = np.uint8(self._hand_segmentation.segment(rgb_cv, depth_cv))
+
+        kernel = np.ones((3, 3), np.uint8)
+        cv2.erode(labels, kernel, labels)
 
         idx = (labels == 1)
         rgb_cv[idx] = [0, 0, 255]
@@ -57,7 +63,7 @@ def main():
     depth_sub = message_filters.Subscriber('depth_registered',
                                            sensor_msgs.msg.Image)
     queue_size = 1
-    slop_seconds = 0.05
+    slop_seconds = 0.015
     sync = message_filters.ApproximateTimeSynchronizer(
         [rgb_sub, depth_sub], queue_size, slop_seconds)
 
