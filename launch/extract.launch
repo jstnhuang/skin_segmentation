@@ -1,0 +1,6 @@
+<launch>
+  <node pkg="rosbag" type="play" name="rosbag" args="-d 2 /home/jstn/tracking_ws/src/skin_segmentation/src/skin_segmentation/images/packaging_labeled.bag"/>
+  <node name="extract" pkg="image_view" type="extract_images" respawn="false" output="screen" cwd="ROS_HOME">
+    <remap from="image" to="/hand_segmentation_rgb"/>
+  </node>
+</launch>
