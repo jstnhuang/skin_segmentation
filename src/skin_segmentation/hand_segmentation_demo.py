@@ -59,11 +59,11 @@ def main():
         'hand_demo_overlay_rgb', sensor_msgs.msg.Image, queue_size=1)
     demo = Demo(hand_segmentation, overlay_pub)
 
-    rgb_sub = message_filters.Subscriber('rgb', sensor_msgs.msg.Image)
+    rgb_sub = message_filters.Subscriber('rgb', sensor_msgs.msg.Image, queue_size=2)
     depth_sub = message_filters.Subscriber('depth_registered',
-                                           sensor_msgs.msg.Image)
+                                           sensor_msgs.msg.Image, queue_size=2)
     queue_size = 1
-    slop_seconds = 0.015
+    slop_seconds = 0.005
     sync = message_filters.ApproximateTimeSynchronizer(
         [rgb_sub, depth_sub], queue_size, slop_seconds)
 
