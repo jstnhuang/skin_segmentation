@@ -17,43 +17,20 @@ def _get_image_blob(im, im_depth, pixel_means):
             in the image pyramid
     """
     # RGB
-    im_orig = im.astype(np.float32, copy=True)
-    im_scale = 1.0
-    im_orig -= pixel_means
-    processed_ims = []
-    im_scale_factors = []
-
-    im = cv2.resize(
-        im_orig,
-        None,
-        None,
-        fx=im_scale,
-        fy=im_scale,
-        interpolation=cv2.INTER_LINEAR)
-    im_scale_factors.append(im_scale)
-    processed_ims.append(im)
+    rgb = im.astype(np.float32)
+    rgb -= pixel_means
 
     # depth
-    im_orig = im_depth.astype(np.float32, copy=True)
-    im_orig = im_orig / im_orig.max() * 255
-    im_orig = np.tile(im_orig[:, :, np.newaxis], (1, 1, 3))
-    im_orig -= pixel_means
-
-    processed_ims_depth = []
-    im = cv2.resize(
-        im_orig,
-        None,
-        None,
-        fx=im_scale,
-        fy=im_scale,
-        interpolation=cv2.INTER_LINEAR)
-    processed_ims_depth.append(im)
+    depth = im_depth.astype(np.float32)
+    depth = depth / depth.max() * 255
+    depth = np.tile(depth[:, :, np.newaxis], (1, 1, 3))
+    depth -= pixel_means
 
     # Create a blob to hold the input images
-    blob = utils.blob.im_list_to_blob(processed_ims, 3)
-    blob_depth = utils.blob.im_list_to_blob(processed_ims_depth, 3)
+    blob = utils.blob.im_to_blob(rgb, 3)
+    blob_depth = utils.blob.im_to_blob(depth, 3)
 
-    return blob, blob_depth, np.array(im_scale_factors)
+    return blob, blob_depth
 
 
 class HandSegmentation(object):
@@ -89,27 +66,31 @@ class HandSegmentation(object):
         Returns:
             labels: An OpenCV image with 8UC1 encoding, 1 = hand, 0 = not hand
         """
-        # read color image
-        im = utils.blob.pad_im(rgb, 16)
+        # Assumes the RGB/Depth height/width are multiples of 16
+        #if (rgb.shape[0] % 16 != 0 or rgb.shape[1] % 16 != 0
+        #        or depth.shape[0] % 16 != 0 or depth.shape[1] % 16 != 0):
+        #    # read color image
+        #    im = utils.blob.pad_im(rgb, 16)
 
-        # read depth image
-        im_depth = utils.blob.pad_im(depth, 16)
+        #    # read depth image
+        #    im_depth = utils.blob.pad_im(depth, 16)
 
-        labels, probs = self.im_segment_single_frame(im, im_depth)
-        labels = utils.blob.unpad_im(labels, 16)
+        #    labels, probs = self.im_segment_single_frame(im, im_depth)
+        #    labels = utils.blob.unpad_im(labels, 16)
+        #    return labels
+        labels, probs = self.im_segment_single_frame(rgb, depth)
         return labels
 
     def im_segment_single_frame(self, im, im_depth):
         num_classes = 2
 
         # compute image blob
-        im_blob, im_depth_blob, im_scale_factors = _get_image_blob(
-            im, im_depth, HandSegmentation.PIXEL_MEANS)
-        im_scale = im_scale_factors[0]
+        im_blob, im_depth_blob = _get_image_blob(im, im_depth,
+                                                 HandSegmentation.PIXEL_MEANS)
 
         # use a fake label blob of ones
-        height = int(im_depth.shape[0] * im_scale)
-        width = int(im_depth.shape[1] * im_scale)
+        height = im_depth.shape[0]
+        width = im_depth.shape[1]
         label_blob = np.ones((1, height, width, num_classes), dtype=np.float32)
 
         # forward pass

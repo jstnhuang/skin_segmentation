@@ -40,6 +40,31 @@ def im_list_to_blob(ims, num_channels):
     return blob
 
 
+def im_to_blob(im, num_channels):
+    """Convert an image into a network input.
+
+    A blob is a 4D array:
+      num_images (for this function, 1)
+      height
+      width
+      channels
+
+    If the images have different resolutions, then the height and width of the
+    blob is the max height and width of all the images. Smaller images are
+    placed in the upper left corner of the blob and the rest filled with zeros.
+
+    Assumes images are already prepared (means subtracted, BGR order, ...).
+    """
+    blob = np.zeros(
+        (1, im.shape[0], im.shape[1], num_channels), dtype=np.float32)
+    if num_channels == 1:
+        blob[0, 0:im.shape[0], 0:im.shape[1], :] = im[:, :, np.newaxis]
+    else:
+        blob[0, 0:im.shape[0], 0:im.shape[1], :] = im
+
+    return blob
+
+
 def pad_im(im, factor, value=0):
     """Pads the image so its width and height are a multiple of the given factor.
 
