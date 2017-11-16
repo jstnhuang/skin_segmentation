@@ -46,6 +46,15 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size):
 
 
 def pad_im(im, factor, value=0):
+    """Pads the image so its width and height are a multiple of the given factor.
+
+    The padding will be added to the right/bottom of the image, if needed.
+
+    Args:
+        im: The image, as a numpy array.
+        factor: The factor which should divide the width and height.
+        value: The constant value that fills the padding.
+    """
     height = im.shape[0]
     width = im.shape[1]
 
@@ -59,6 +68,12 @@ def pad_im(im, factor, value=0):
 
 
 def unpad_im(im, factor):
+    """Truncates an image so that its height and width are a multiple of the given factor.
+
+    Args:
+        im: The image, as a numpy array.
+        factor: The factor which 
+    """
     height = im.shape[0]
     width = im.shape[1]
 
