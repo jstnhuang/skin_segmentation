@@ -4,11 +4,11 @@
 # Licensed under The MIT License [see LICENSE for details]
 # Written by Ross Girshick
 # --------------------------------------------------------
-
 """Blob helper functions."""
 
 import numpy as np
 import cv2
+
 
 def im_list_to_blob(ims, num_channels):
     """Convert a list of images into a network input.
@@ -17,16 +17,18 @@ def im_list_to_blob(ims, num_channels):
     """
     max_shape = np.array([im.shape for im in ims]).max(axis=0)
     num_images = len(ims)
-    blob = np.zeros((num_images, max_shape[0], max_shape[1], num_channels),
-                    dtype=np.float32)
+    blob = np.zeros(
+        (num_images, max_shape[0], max_shape[1], num_channels),
+        dtype=np.float32)
     for i in xrange(num_images):
         im = ims[i]
         if num_channels == 1:
-            blob[i, 0:im.shape[0], 0:im.shape[1], :] = im[:,:,np.newaxis]
+            blob[i, 0:im.shape[0], 0:im.shape[1], :] = im[:, :, np.newaxis]
         else:
             blob[i, 0:im.shape[0], 0:im.shape[1], :] = im
 
     return blob
+
 
 def prep_im_for_blob(im, pixel_means, target_size, max_size):
     """Mean subtract and scale an image for use in a blob."""
@@ -39,8 +41,13 @@ def prep_im_for_blob(im, pixel_means, target_size, max_size):
     # Prevent the biggest axis from being more than MAX_SIZE
     if np.round(im_scale * im_size_max) > max_size:
         im_scale = float(max_size) / float(im_size_max)
-    im = cv2.resize(im, None, None, fx=im_scale, fy=im_scale,
-                    interpolation=cv2.INTER_LINEAR)
+    im = cv2.resize(
+        im,
+        None,
+        None,
+        fx=im_scale,
+        fy=im_scale,
+        interpolation=cv2.INTER_LINEAR)
 
     return im, im_scale
 
@@ -62,9 +69,15 @@ def pad_im(im, factor, value=0):
     pad_width = int(np.ceil(width / float(factor)) * factor - width)
 
     if len(im.shape) == 3:
-        return np.lib.pad(im, ((0, pad_height), (0, pad_width), (0,0)), 'constant', constant_values=value)
+        return np.lib.pad(
+            im, ((0, pad_height), (0, pad_width), (0, 0)),
+            'constant',
+            constant_values=value)
     elif len(im.shape) == 2:
-        return np.lib.pad(im, ((0, pad_height), (0, pad_width)), 'constant', constant_values=value)
+        return np.lib.pad(
+            im, ((0, pad_height), (0, pad_width)),
+            'constant',
+            constant_values=value)
 
 
 def unpad_im(im, factor):
@@ -72,7 +85,7 @@ def unpad_im(im, factor):
 
     Args:
         im: The image, as a numpy array.
-        factor: The factor which 
+        factor: The factor which
     """
     height = im.shape[0]
     width = im.shape[1]
@@ -81,9 +94,9 @@ def unpad_im(im, factor):
     pad_width = int(np.ceil(width / float(factor)) * factor - width)
 
     if len(im.shape) == 3:
-        return im[0:height-pad_height, 0:width-pad_width, :]
+        return im[0:height - pad_height, 0:width - pad_width, :]
     elif len(im.shape) == 2:
-        return im[0:height-pad_height, 0:width-pad_width]
+        return im[0:height - pad_height, 0:width - pad_width]
 
 
 def chromatic_transform(im, label=None, d_h=None, d_s=None, d_l=None):
