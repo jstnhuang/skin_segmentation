@@ -13,6 +13,16 @@ import cv2
 def im_list_to_blob(ims, num_channels):
     """Convert a list of images into a network input.
 
+    A blob is a 4D array:
+      num_images
+      height
+      width
+      channels
+
+    If the images have different resolutions, then the height and width of the
+    blob is the max height and width of all the images. Smaller images are
+    placed in the upper left corner of the blob and the rest filled with zeros.
+
     Assumes images are already prepared (means subtracted, BGR order, ...).
     """
     max_shape = np.array([im.shape for im in ims]).max(axis=0)
