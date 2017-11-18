@@ -49,7 +49,9 @@ class Demo(object):
 def main():
     rospy.init_node('hand_segmentation_demo')
     if len(sys.argv) < 2:
-        print 'Usage: hand_segmentation_demo model.ckpt rgb:=/camera/rgb/image_rect_color depth_registered:=/camera/depth_registered/image'
+        print('Usage: hand_segmentation_demo model.ckpt '
+              'rgb:=/camera/rgb/image_rect_color '
+              'depth_registered:=/camera/depth_registered/image')
         return
 
     checkpoint_path = sys.argv[1]
