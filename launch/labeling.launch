@@ -1,4 +1,5 @@
 <launch>
+  <include file="$(find skin_segmentation)/launch/params.launch" />
   <include file="$(find skin_segmentation)/launch/tf_frames.launch" />
   <include file="$(find rosbridge_server)/launch/rosbridge_websocket.launch" />
 </launch>
