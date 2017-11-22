@@ -19,6 +19,8 @@ class Server(object):
     def __init__(self, hand_segmentation):
         self._hand_segmentation = hand_segmentation
         self._cv_bridge = cv_bridge.CvBridge()
+        self._label_pub = rospy.Publisher(
+            'hand_demo_overlay_rgb', sensor_msgs.msg.Image, queue_size=1)
 
     def callback(self, request):
         rgb = request.rgb
@@ -34,7 +36,7 @@ class Server(object):
 
         rgb_cv = self._cv_bridge.imgmsg_to_cv2(rgb, 'bgr8')
         depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
-        labels = np.uint8(self._hand_segmentation.segment(rgb_cv, depth_cv))
+        labels = np.uint8(self._hand_segmentation.segment(rgb_cv, depth_cv)) * 255
 
         kernel = np.ones((3, 3), np.uint8)
         cv2.erode(labels, kernel, labels)
@@ -43,6 +45,7 @@ class Server(object):
         response.prediction.header.stamp = rospy.Time.now()
         response.prediction.header.frame_id = rgb.header.frame_id
         response.prediction.encoding = 'mono8'
+        self._label_pub.publish(response.prediction)
         return response
 
 

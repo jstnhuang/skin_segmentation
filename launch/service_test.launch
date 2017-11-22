@@ -1,7 +1,7 @@
 <launch>
-  <node pkg="skin_segmentation" type="hand_segmentation_node.py" name="hand_segmentation_node" args="/home/jstn/data/hand_models/2017-11-17_data24_chromatic_100k/vgg16_fcn_rgbd_single_frame_hand_iter_100000.ckpt"/>
-  <node pkg="skin_segmentation" type="hand_segmentation_node_demo.py" name="hand_segmentation_node_demo">
+  <node pkg="skin_segmentation" type="hand_segmentation_node.py" name="hand_segmentation_node" args="/home/jstn/data/hand_models/2017-11-21_data25_h20_100k/vgg16_fcn_rgbd_single_frame_hand_iter_100000.ckpt"/>
+  <!--node pkg="skin_segmentation" type="hand_segmentation_node_demo.py" name="hand_segmentation_node_demo">
     <remap from="rgb" to="/camera/rgb/image_rect_color" />
     <remap from="depth_registered" to="/camera/depth_registered/image" />
-  </node>
+  </node-->
 </launch>
