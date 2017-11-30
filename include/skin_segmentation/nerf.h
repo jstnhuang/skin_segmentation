@@ -20,6 +20,7 @@ class Nerf {
   Nerf(const ros::Publisher& joint_pub, const ros::Publisher& skeleton_pub);
   void Update(const skin_segmentation_msgs::NerfJointStates& joint_states);
   void PublishJointStates();
+  void GetJointStates(skin_segmentation_msgs::NerfJointStates* joint_states);
   void PublishVisualization();
   Eigen::Affine3f GetJointPose(const std::string& joint_name);
   void Step(const sensor_msgs::Image::ConstPtr& rgb,
