@@ -22,6 +22,7 @@ static const char kNerfRForearmRotJoint[] = "forearmRt_rx";
 static const char kNerfLMiddleFinger1Joint[] = "middleLf1_rz";
 static const char kNerfRMiddleFinger1Joint[] = "middleRt1_rz";
 static const char kImageSetTopic[] = "/images";
+static const char kNerfJointStatesLabelTopic[] = "/nerf_joint_states_label";
 }  // namespace skinseg
 
 #endif  // _SKINSEG_CONSTANTS_H_

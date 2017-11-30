@@ -220,6 +220,14 @@ target_link_libraries(skin_segmentation_projection
   ${OpenCV_LIBRARIES}
 )
 
+add_library(skin_segmentation_skeleton_labeler src/skeleton_labeler.cpp)
+add_dependencies(skin_segmentation_skeleton_labeler ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_skeleton_labeler
+  skin_segmentation_load_configs
+  skin_segmentation_nerf
+  ${catkin_LIBRARIES}
+)
+
 add_library(skin_segmentation_snapshot src/snapshot.cpp)
 add_dependencies(skin_segmentation_snapshot ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_snapshot
@@ -268,6 +276,15 @@ target_link_libraries(skin_segmentation_label_data_main
   skin_segmentation_load_configs
   skin_segmentation_labeling
   skin_segmentation_nerf
+  ${catkin_LIBRARIES}
+)
+
+add_executable(skin_segmentation_label_skeleton_main src/label_skeleton_main.cpp)
+set_target_properties(skin_segmentation_label_skeleton_main PROPERTIES OUTPUT_NAME label_skeleton PREFIX "")
+add_dependencies(skin_segmentation_label_skeleton_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_label_skeleton_main
+  skin_segmentation_nerf
+  skin_segmentation_skeleton_labeler
   ${catkin_LIBRARIES}
 )
 
