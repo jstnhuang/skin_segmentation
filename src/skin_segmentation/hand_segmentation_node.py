@@ -38,8 +38,8 @@ class Server(object):
         depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
         labels = np.uint8(self._hand_segmentation.segment(rgb_cv, depth_cv)) * 255
 
-        kernel = np.ones((3, 3), np.uint8)
-        cv2.erode(labels, kernel, labels)
+        #kernel = np.ones((3, 3), np.uint8)
+        #cv2.erode(labels, kernel, labels)
 
         response.prediction = self._cv_bridge.cv2_to_imgmsg(labels)
         response.prediction.header.stamp = rospy.Time.now()
