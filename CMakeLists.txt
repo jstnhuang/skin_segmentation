@@ -2,12 +2,13 @@ cmake_minimum_required(VERSION 2.8.3)
 project(skin_segmentation)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
+add_compile_options(-std=c++11)
 
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED COMPONENTS
+  abseil_cpp
   camera_calibration_parsers
   cv_bridge
   geometry_msgs
@@ -220,6 +221,14 @@ target_link_libraries(skin_segmentation_projection
   ${OpenCV_LIBRARIES}
 )
 
+add_library(skin_segmentation_skeleton_evaluator src/skeleton_evaluator.cpp)
+add_dependencies(skin_segmentation_skeleton_evaluator ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_skeleton_evaluator
+  skin_segmentation_load_configs
+  skin_segmentation_nerf
+  ${catkin_LIBRARIES}
+)
+
 add_library(skin_segmentation_skeleton_labeler src/skeleton_labeler.cpp)
 add_dependencies(skin_segmentation_skeleton_labeler ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_skeleton_labeler
@@ -265,6 +274,15 @@ set_target_properties(skin_segmentation_calibration_main PROPERTIES OUTPUT_NAME 
 add_dependencies(skin_segmentation_calibration_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(skin_segmentation_calibration_main
   skin_segmentation_calibration
+  ${catkin_LIBRARIES}
+)
+
+add_executable(skin_segmentation_evaluate_skeleton_main src/evaluate_skeleton_main.cpp)
+set_target_properties(skin_segmentation_evaluate_skeleton_main PROPERTIES OUTPUT_NAME evaluate_skeleton PREFIX "")
+add_dependencies(skin_segmentation_evaluate_skeleton_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_evaluate_skeleton_main
+  skin_segmentation_nerf
+  skin_segmentation_skeleton_evaluator
   ${catkin_LIBRARIES}
 )
 
