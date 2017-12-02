@@ -49,9 +49,7 @@ SkeletonEvaluator::SkeletonEvaluator(Nerf* nerf, Nerf* labeled_nerf,
 
   std::vector<std::string> labeled_bag_topics;
   labeled_bag_topics.push_back(skinseg::kNerfJointStatesLabelTopic);
-  skel_labels_view_ =
-      // new rosbag::View(skel_labels_, rosbag::TopicQuery(labeled_bag_topics));
-      new rosbag::View(skel_labels_);
+  skel_labels_view_ = new rosbag::View(skel_labels_);
   ROS_INFO("Number of labels: %d", skel_labels_view_->size());
   skel_labels_it_ = skel_labels_view_->begin();
 }

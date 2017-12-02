@@ -81,11 +81,6 @@ int main(int argc, char** argv) {
   rosbag::Bag labeled_bag;
   std::string labeled_bag_path(argv[2]);
   labeled_bag.open(labeled_bag_path, rosbag::bagmode::Read);
-  // std::vector<std::string> labeled_bag_topics;
-  // labeled_bag_topics.push_back(skinseg::kNerfJointStatesLabelTopic);
-  // rosbag::View labeled_view(labeled_bag,
-  //                          rosbag::TopicQuery(labeled_bag_topics));
-
   skinseg::SkeletonEvaluator skeleton_evaluator(&nerf, &labeled_nerf,
                                                 labeled_bag);
 
