@@ -92,8 +92,7 @@ int main(int argc, char** argv) {
   rosbag::Bag* labeled_bag = NULL;
   if (argc >= 3) {
     std::string labeled_bag_path(argv[2]);
-    labeled_bag = new rosbag::Bag(labeled_bag_path);
-    labeled_bag->open(labeled_bag_path, rosbag::bagmode::Read);
+    labeled_bag = new rosbag::Bag(labeled_bag_path, rosbag::bagmode::Read);
   }
   skinseg::SkeletonEvaluator skeleton_evaluator(&nerf, &labeled_nerf,
                                                 labeled_bag);
