@@ -30,9 +30,37 @@ def compute_pdf_for_joint_distances(joint_distances):
     return pdf, num_points, max_distance
 
 
+def parse_our_result_file(distances_file):
+    """Our format is:
+    1,d1,d2,d3,d4,d5,d6
+    2,d1,d2,d3,d4,d5,d6
+
+    We convert this into the same as the JSON format
+    {
+        'shoulder': [d1_1, d1_2, d1_3],
+        'l_wrist': [d2_1, d2_2, d2_3],
+    }
+    """
+    joints = [
+        'shoulderLf3_ry', 'shoulderRt3_ry', 'elbowLf_rz', 'elbowRt_rz',
+        'wristRt_rz', 'wristLf_rz'
+    ]
+    results = []
+    for line in distances_file:
+        vals = [float(x) for x in line.split(',')[1:]]
+        results.append(vals)
+    column_order = zip(*results)
+
+    results = {}
+    for i in range(len(joints)):
+        results[joints[i]] = list(column_order[i])
+    return results
+
+
 def main():
     if len(sys.argv) < 2:
         print 'Usage: ./plot_nerf_eval.py DISTANCES1.json DISTANCES2.json ...'
+        print 'Usage: ./plot_nerf_eval.py RESULTS1.txt RESULTS2.txt ...'
         return
 
     # pdf gives a count of data points within a certain range
@@ -46,14 +74,19 @@ def main():
 
     for file_i in range(1, len(sys.argv)):
         distances_file = open(sys.argv[file_i])
-        joint_distances = json.load(distances_file)
-        file_pdf, file_pts, file_max = compute_pdf_for_joint_distances(joint_distances)
+        if sys.argv[file_i].endswith('.json'):
+            joint_distances = json.load(distances_file)
+        else:
+            joint_distances = parse_our_result_file(distances_file)
+        file_pdf, file_pts, file_max = compute_pdf_for_joint_distances(
+            joint_distances)
         for i in range(100):
             pdf[i] += file_pdf[i]
         num_points += file_pts
         max_distance = max(max_distance, file_max)
+    print 'Max distance: {}'.format(max_distance)
     max_index = int(math.ceil(max_distance * 100)) + 1
-    max_index = 21
+    max_index = 51
 
     pdf = [float(x) / num_points for x in pdf]
 
@@ -63,7 +96,7 @@ def main():
     for i in range(1, max_index):
         cdf[i] = cdf[i - 1] + pdf[i]
         auc += (cdf[i - 1] + cdf[i]) / 2 * 0.01
-    total_area = (max_index-1) / 100.0
+    total_area = (max_index - 1) / 100.0
     auc /= total_area
 
     x = [0.01 * i for i in range(max_index)]
