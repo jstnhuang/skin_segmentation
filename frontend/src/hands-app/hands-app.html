@@ -81,7 +81,11 @@
         return this.jointStates.maxs[index];
       }
       stepSize(index) {
-        return (this.jointStates.maxs[index] - this.jointStates.mins[index]) / 1000;
+        if (index > 5) {
+          return (this.jointStates.maxs[index] - this.jointStates.mins[index]) / 500;
+        } else {
+          return (this.jointStates.maxs[index] - this.jointStates.mins[index]) / 2000;
+        }
       }
       handleChange() {
         this.$.controlsPub.publish(this.jointStates);
