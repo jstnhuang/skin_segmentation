@@ -56,7 +56,7 @@ int main(int argc, char** argv) {
   float model_scale;
   ros::param::param("label_data_model_scale", model_scale, 0.92f);
   ROS_INFO("Model scale: %f", model_scale);
-  skinseg::BuildNerf(&nerf, model_scale);
+  skinseg::BuildNerf(&nerf, model_scale, false);
 
   // Subscriber for nerf control UI
   ros::Subscriber nerf_sub =

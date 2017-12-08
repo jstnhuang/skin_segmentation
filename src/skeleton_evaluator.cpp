@@ -22,10 +22,11 @@ using skin_segmentation_msgs::NerfJointStates;
 
 namespace skinseg {
 SkeletonEvaluator::SkeletonEvaluator(Nerf* nerf, Nerf* labeled_nerf,
-                                     const rosbag::Bag& skel_labels)
+                                     rosbag::Bag* skel_labels)
     : nerf_(nerf),
       labeled_nerf_(labeled_nerf),
       skel_labels_(skel_labels),
+      skel_labels_view_(NULL),
       nh_(),
       rgb_pub_(nh_.advertise<sensor_msgs::Image>(kRgbTopic, 1, true)),
       depth_pub_(nh_.advertise<sensor_msgs::Image>(kDepthTopic, 1, true)),
@@ -47,11 +48,13 @@ SkeletonEvaluator::SkeletonEvaluator(Nerf* nerf, Nerf* labeled_nerf,
   kNerfEvaluationJoints_.push_back(kNerfLWristJoint);
   kNerfEvaluationJoints_.push_back(kNerfRWristJoint);
 
-  std::vector<std::string> labeled_bag_topics;
-  labeled_bag_topics.push_back(skinseg::kNerfJointStatesLabelTopic);
-  skel_labels_view_ = new rosbag::View(skel_labels_);
-  ROS_INFO("Number of labels: %d", skel_labels_view_->size());
-  skel_labels_it_ = skel_labels_view_->begin();
+  if (skel_labels_ != NULL) {
+    std::vector<std::string> labeled_bag_topics;
+    labeled_bag_topics.push_back(skinseg::kNerfJointStatesLabelTopic);
+    skel_labels_view_ = new rosbag::View(*skel_labels_);
+    ROS_INFO("Number of labels: %d", skel_labels_view_->size());
+    skel_labels_it_ = skel_labels_view_->begin();
+  }
 }
 
 SkeletonEvaluator::~SkeletonEvaluator() {
@@ -81,11 +84,12 @@ void SkeletonEvaluator::Process(const sensor_msgs::ImageConstPtr& rgb,
   nerf_->PublishVisualization();
 
   // Step through labeled tracker
-  if (skel_labels_it_ == skel_labels_view_->end()) {
+  if (skel_labels_ != NULL && skel_labels_it_ == skel_labels_view_->end()) {
     ROS_ERROR("Failed to get next label!");
     return;
   }
-  if (skel_labels_it_->getTopic() != skinseg::kNerfJointStatesLabelTopic) {
+  if (skel_labels_ != NULL &&
+      skel_labels_it_->getTopic() != skinseg::kNerfJointStatesLabelTopic) {
     ROS_ERROR("Invalid topic in labeled skeleton bag. Got %s, expected %s",
               skel_labels_it_->getTopic().c_str(),
               skinseg::kNerfJointStatesLabelTopic);
@@ -93,15 +97,17 @@ void SkeletonEvaluator::Process(const sensor_msgs::ImageConstPtr& rgb,
   }
   // We expect that the timestamp matches the RGB image (this is the logic in
   // label_skeleton).
-  if (skel_labels_it_->getTime() != rgb->header.stamp) {
+  if (skel_labels_ != NULL && skel_labels_it_->getTime() != rgb->header.stamp) {
     ROS_ERROR_STREAM("Time mismatch in labeled skeleton. Expected: "
                      << rgb->header.stamp
                      << ", got: " << skel_labels_it_->getTime());
     return;
   }
-  NerfJointStates::ConstPtr labeled_joint_states =
-      skel_labels_it_->instantiate<NerfJointStates>();
-  labeled_nerf_->Update(*labeled_joint_states);
+  if (skel_labels_ != NULL) {
+    NerfJointStates::ConstPtr labeled_joint_states =
+        skel_labels_it_->instantiate<NerfJointStates>();
+    labeled_nerf_->Update(*labeled_joint_states);
+  }
 
   // Evaluate
   skin_segmentation_msgs::NerfJointStates joint_states;
@@ -116,7 +122,9 @@ void SkeletonEvaluator::Process(const sensor_msgs::ImageConstPtr& rgb,
     stats[i + 1] = offset.norm();
   }
 
-  std::cout << absl::StrJoin(stats, "\t") << std::endl;
-  ++skel_labels_it_;
+  std::cout << absl::StrJoin(stats, ",") << std::endl;
+  if (skel_labels_ != NULL) {
+    ++skel_labels_it_;
+  }
 }
 }  // namespace skinseg

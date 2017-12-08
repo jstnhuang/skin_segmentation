@@ -67,17 +67,17 @@ class HandSegmentation(object):
             labels: An OpenCV image with 8UC1 encoding, 1 = hand, 0 = not hand
         """
         # You can comment this out if you know RGB/Depth are multiples of 16
-        if (rgb.shape[0] % 16 != 0 or rgb.shape[1] % 16 != 0
-                or depth.shape[0] % 16 != 0 or depth.shape[1] % 16 != 0):
-            # read color image
-            im = utils.blob.pad_im(rgb, 16)
+        #if (rgb.shape[0] % 16 != 0 or rgb.shape[1] % 16 != 0
+        #        or depth.shape[0] % 16 != 0 or depth.shape[1] % 16 != 0):
+        #    # read color image
+        #    im = utils.blob.pad_im(rgb, 16)
 
-            # read depth image
-            im_depth = utils.blob.pad_im(depth, 16)
+        #    # read depth image
+        #    im_depth = utils.blob.pad_im(depth, 16)
 
-            labels, probs = self.im_segment_single_frame(im, im_depth)
-            labels = utils.blob.unpad_im(labels, 16)
-            return labels
+        #    labels, probs = self.im_segment_single_frame(im, im_depth)
+        #    labels = utils.blob.unpad_im(labels, 16)
+        #    return labels
         labels, probs = self.im_segment_single_frame(rgb, depth)
         return labels
 

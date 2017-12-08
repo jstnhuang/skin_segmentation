@@ -71,7 +71,7 @@ class Server(object):
             depth_32 = self._cv_bridge.imgmsg_to_cv2(depth) + 0.5
             depth_cv = np.array(depth_32, dtype=np.uint16)
         elif depth.encoding == '16UC1':
-            depth_cv = np.array(depth)
+            depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
         else:
             rospy.logerr_throttle(
                 1, 'Unsupported depth type. Expected 32FC1 or 16UC1, got {}'.

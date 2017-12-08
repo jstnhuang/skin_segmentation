@@ -3,6 +3,7 @@
 #include "Eigen/Dense"
 #include "geometry/dual_quaternion.h"
 #include "kinematics/kinematic_hierarchy.h"
+#include "model/hand_vertices_io.h"
 #include "model/model.h"
 #include "model/model_instance.h"
 #include "observation/ros_observation.h"
@@ -10,15 +11,24 @@
 #include "ros/ros.h"
 #include "sensor_msgs/Image.h"
 #include "skin_segmentation_msgs/NerfJointStates.h"
+#include "skin_segmentation_msgs/PredictHands.h"
 #include "visualization_msgs/Marker.h"
 #include "visualization_msgs/MarkerArray.h"
 
 #include "skin_segmentation/constants.h"
 #include "skin_segmentation/load_configs.h"
 
+static const char kHandVerticesPath[] =
+    "/home/jstn/tracking_ws/src/nerf_b/data/hand_vertices.json";
+static const char kPredictHandsService[] = "/predict_hands";
+
 namespace skinseg {
 Nerf::Nerf(const ros::Publisher& joint_pub, const ros::Publisher& skeleton_pub)
-    : joint_state_pub_(joint_pub), skeleton_pub_(skeleton_pub) {}
+    : joint_state_pub_(joint_pub),
+      skeleton_pub_(skeleton_pub),
+      viz_r_(1),
+      viz_g_(0),
+      viz_b_(0) {}
 
 void Nerf::Update(const skin_segmentation_msgs::NerfJointStates& joint_states) {
   model_instance->setControls(joint_states.values.data());
@@ -51,7 +61,7 @@ void Nerf::GetJointStates(
 
 void Nerf::PublishVisualization() {
   visualization_msgs::MarkerArray skeleton;
-  SkeletonMarkerArray(this, &skeleton);
+  SkeletonMarkerArray(this, viz_r_, viz_g_, viz_b_, &skeleton);
   skeleton_pub_.publish(skeleton);
 }
 
@@ -73,7 +83,13 @@ void Nerf::Step(const sensor_msgs::Image::ConstPtr& rgb,
   optimizer->optimize(opt_parameters);
 }
 
-void BuildNerf(Nerf* nerf, float model_scale) {
+void Nerf::set_rgb(float r, float g, float b) {
+  viz_r_ = r;
+  viz_g_ = g;
+  viz_b_ = b;
+}
+
+void BuildNerf(Nerf* nerf, float model_scale, bool use_hand_segmentation) {
   bool run_neighbor_filter = true;
   float neighbor_filter_threshold = 0.02;
   int required_neighbors = 4;
@@ -115,6 +131,20 @@ void BuildNerf(Nerf* nerf, float model_scale) {
   nerf->model_instance->setScale(model_scale);
   nerf->optimizer = new nerf::Optimizer(observation);
   nerf->optimizer->addInstance(nerf->model_instance);
+  if (use_hand_segmentation) {
+    ros::NodeHandle nh;
+    ros::ServiceClient predictHands =
+        nh.serviceClient<skin_segmentation_msgs::PredictHands>(
+            kPredictHandsService, true);
+    bool isHandVertex[nerf->model->getNumVertices()];
+    for (int i = 0; i < nerf->model->getNumVertices(); ++i) {
+      isHandVertex[i] = false;
+    }
+    nerf::ReadHandVerticesFromFile(kHandVerticesPath, isHandVertex);
+
+    nerf->optimizer->addHandSegmenter(predictHands, isHandVertex,
+                                      nerf->model->getNumVertices());
+  }
 
   int poseIterations = 15;
   bool updateControls = true;
@@ -137,9 +167,14 @@ void BuildNerf(Nerf* nerf, float model_scale) {
   nerf->opt_parameters.computeControlStiffness = computeStiffness;
   nerf->opt_parameters.controlStiffness = stiffness;
   nerf->opt_parameters.controlWindowParameters.resolutionIndex = 0;
-  nerf->opt_parameters.controlWindowParameters.neighborhood = 9;
+  if (use_hand_segmentation) {
+    nerf->opt_parameters.controlWindowParameters.neighborhood = 18;
+    nerf->opt_parameters.controlWindowParameters.maxDistance = 0.1;
+  } else {
+    nerf->opt_parameters.controlWindowParameters.neighborhood = 9;
+    nerf->opt_parameters.controlWindowParameters.maxDistance = 0.1;
+  }
   nerf->opt_parameters.controlWindowParameters.backfaceThreshold = 0.4;
-  nerf->opt_parameters.controlWindowParameters.maxDistance = 0.1;
   nerf->opt_parameters.controlWindowParameters.depthWeight = 1.0;
   nerf->opt_parameters.controlWindowParameters.normalDistanceContribution = 0.f;
   nerf->opt_parameters.controlWindowParameters
@@ -167,9 +202,14 @@ void BuildNerf(Nerf* nerf, float model_scale) {
   nerf->opt_parameters.shapeMagnitudePenalty = shapeMagnitudePenalty;
   nerf->opt_parameters.shapeNeighborPenalty = shapeNeighborPenalty;
   nerf->opt_parameters.shapeWindowParameters.resolutionIndex = 2;
-  nerf->opt_parameters.shapeWindowParameters.neighborhood = 9;
+  if (use_hand_segmentation) {
+    nerf->opt_parameters.shapeWindowParameters.neighborhood = 18;
+    nerf->opt_parameters.shapeWindowParameters.maxDistance = 0.1;
+  } else {
+    nerf->opt_parameters.shapeWindowParameters.neighborhood = 9;
+    nerf->opt_parameters.shapeWindowParameters.maxDistance = 0.1;
+  }
   nerf->opt_parameters.shapeWindowParameters.backfaceThreshold = 0.4;
-  nerf->opt_parameters.shapeWindowParameters.maxDistance = 0.1;
   nerf->opt_parameters.shapeWindowParameters.depthWeight = 1.0;
   nerf->opt_parameters.shapeWindowParameters.normalDistanceContribution = 0.f;
   nerf->opt_parameters.shapeWindowParameters.computeModelToObservationResidual =
@@ -190,7 +230,7 @@ void BuildNerf(Nerf* nerf, float model_scale) {
   nerf->opt_parameters.shapeResidualParameters.huberDelta = 1.f;
 }
 
-void SkeletonMarkerArray(Nerf* nerf,
+void SkeletonMarkerArray(Nerf* nerf, float red, float green, float blue,
                          visualization_msgs::MarkerArray* marker_array) {
   float scale = nerf->model_instance->getScale();
   const nerf::KinematicHierarchy* kh = nerf->model->getKinematics();
@@ -204,7 +244,9 @@ void SkeletonMarkerArray(Nerf* nerf,
     visualization_msgs::Marker marker;
     marker.header.frame_id = "camera_rgb_optical_frame";
     marker.id = i;
-    marker.color.r = 1;
+    marker.color.r = red;
+    marker.color.g = green;
+    marker.color.b = blue;
     marker.color.a = 1;
     geometry_msgs::Point parent_pt;
     parent_pt.x = parent_position.x;

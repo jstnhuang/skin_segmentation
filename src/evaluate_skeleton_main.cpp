@@ -43,7 +43,10 @@ int main(int argc, char** argv) {
   ros::AsyncSpinner spinner(2);
   spinner.start();
 
-  if (argc < 3) {
+  if (argc < 2) {
+    std::cout << "Usage: rosrun skin_segmentation evaluate_skeleton "
+                 "INPUT_DATA.bag"
+              << std::endl;
     std::cout << "Usage: rosrun skin_segmentation evaluate_skeleton "
                  "INPUT_DATA.bag LABELED_SKELETON.bag"
               << std::endl;
@@ -66,21 +69,32 @@ int main(int argc, char** argv) {
       nh.advertise<visualization_msgs::MarkerArray>("labeled_skeleton", 1,
                                                     true);
   skinseg::Nerf labeled_nerf(labeled_nerf_joint_pub, labeled_skeleton_pub);
+  labeled_nerf.set_rgb(0, 1, 0);
 
   float model_scale;
   ros::param::param("label_data_model_scale", model_scale, 0.92f);
   ROS_INFO("Model scale: %f", model_scale);
-  skinseg::BuildNerf(&nerf, model_scale);
-  skinseg::BuildNerf(&labeled_nerf, model_scale);
-
-  // Subscriber for nerf control UI
-  ros::Subscriber nerf_sub =
-      nh.subscribe("nerf_controls", 1, &skinseg::Nerf::Update, &nerf);
+  bool use_hand_segmentation = false;
+  if (!ros::param::get("use_hand_segmentation", use_hand_segmentation)) {
+    ROS_ERROR("Must set ROS param use_hand_segmentation");
+    return 1;
+  }
+  if (use_hand_segmentation) {
+    ROS_INFO("Using hand segmentation");
+    skinseg::BuildNerf(&nerf, model_scale, true);
+  } else {
+    ROS_INFO("Using baseline system");
+    skinseg::BuildNerf(&nerf, model_scale, false);
+  }
+  skinseg::BuildNerf(&labeled_nerf, model_scale, true);
 
   // Open labeled skeleton bag
-  rosbag::Bag labeled_bag;
-  std::string labeled_bag_path(argv[2]);
-  labeled_bag.open(labeled_bag_path, rosbag::bagmode::Read);
+  rosbag::Bag* labeled_bag = NULL;
+  if (argc >= 3) {
+    std::string labeled_bag_path(argv[2]);
+    labeled_bag = new rosbag::Bag(labeled_bag_path);
+    labeled_bag->open(labeled_bag_path, rosbag::bagmode::Read);
+  }
   skinseg::SkeletonEvaluator skeleton_evaluator(&nerf, &labeled_nerf,
                                                 labeled_bag);
 

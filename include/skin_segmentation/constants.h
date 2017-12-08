@@ -24,12 +24,12 @@ static const char kNerfRMiddleFinger1Joint[] = "middleRt1_rz";
 static const char kImageSetTopic[] = "/images";
 static const char kNerfJointStatesLabelTopic[] = "/nerf_joint_states_label";
 
-static const char kNerfLShoulderJoint[] = "shoulderLf3_ry0";
-static const char kNerfRShoulderJoint[] = "shoulderRt3_ry0";
-static const char kNerfLElbowJoint[] = "elbowLf_rz0";
-static const char kNerfRElbowJoint[] = "elbowRt_rz0";
-static const char kNerfLWristJoint[] = "wristRt_rz0";
-static const char kNerfRWristJoint[] = "wristLf_rz0";
+static const char kNerfLShoulderJoint[] = "shoulderLf3_ry";
+static const char kNerfRShoulderJoint[] = "shoulderRt3_ry";
+static const char kNerfLElbowJoint[] = "elbowLf_rz";
+static const char kNerfRElbowJoint[] = "elbowRt_rz";
+static const char kNerfLWristJoint[] = "wristRt_rz";
+static const char kNerfRWristJoint[] = "wristLf_rz";
 }  // namespace skinseg
 
 #endif  // _SKINSEG_CONSTANTS_H_

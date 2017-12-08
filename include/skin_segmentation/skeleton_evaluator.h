@@ -11,8 +11,7 @@
 namespace skinseg {
 class SkeletonEvaluator {
  public:
-  SkeletonEvaluator(Nerf* nerf, Nerf* labeled_nerf,
-                    const rosbag::Bag& skel_labels);
+  SkeletonEvaluator(Nerf* nerf, Nerf* labeled_nerf, rosbag::Bag* skel_labels);
   ~SkeletonEvaluator();
 
   void Process(const sensor_msgs::ImageConstPtr& rgb,
@@ -21,7 +20,7 @@ class SkeletonEvaluator {
  private:
   Nerf* nerf_;
   Nerf* labeled_nerf_;
-  rosbag::Bag skel_labels_;
+  rosbag::Bag* skel_labels_;
 
   rosbag::View* skel_labels_view_;
   rosbag::View::const_iterator skel_labels_it_;

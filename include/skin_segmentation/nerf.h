@@ -25,6 +25,7 @@ class Nerf {
   Eigen::Affine3f GetJointPose(const std::string& joint_name);
   void Step(const sensor_msgs::Image::ConstPtr& rgb,
             const sensor_msgs::Image::ConstPtr& depth);
+  void set_rgb(float r, float g, float b);
 
   nerf::RosObservation* observation;  // Not owned by anyone
   nerf::Model* model;
@@ -35,11 +36,14 @@ class Nerf {
  private:
   ros::Publisher joint_state_pub_;
   ros::Publisher skeleton_pub_;
+  float viz_r_;
+  float viz_g_;
+  float viz_b_;
 };
 
-void BuildNerf(Nerf* nerf, float scale);
+void BuildNerf(Nerf* nerf, float scale, bool use_hand_segmentation);
 
-void SkeletonMarkerArray(Nerf* nerf,
+void SkeletonMarkerArray(Nerf* nerf, float r, float g, float b,
                          visualization_msgs::MarkerArray* marker_array);
 }  // namespace skinseg
 
