@@ -277,6 +277,14 @@ target_link_libraries(skin_segmentation_calibration_main
   ${catkin_LIBRARIES}
 )
 
+add_executable(skin_segmentation_depth_to_gradient_main src/depth_to_gradient_main.cpp)
+set_target_properties(skin_segmentation_depth_to_gradient_main PROPERTIES OUTPUT_NAME depth_to_gradient PREFIX "")
+add_dependencies(skin_segmentation_depth_to_gradient_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_depth_to_gradient_main
+  skin_segmentation_opencv_utils
+  ${catkin_LIBRARIES}
+)
+
 add_executable(skin_segmentation_evaluate_skeleton_main src/evaluate_skeleton_main.cpp)
 set_target_properties(skin_segmentation_evaluate_skeleton_main PROPERTIES OUTPUT_NAME evaluate_skeleton PREFIX "")
 add_dependencies(skin_segmentation_evaluate_skeleton_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
