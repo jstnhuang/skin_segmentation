@@ -21,10 +21,28 @@ def _get_image_blob(im, im_depth, pixel_means):
     rgb -= pixel_means
 
     # depth
-    depth = im_depth.astype(np.float32)
-    depth = depth / depth.max() * 255
-    depth = np.tile(depth[:, :, np.newaxis], (1, 1, 3))
-    depth -= pixel_means
+    depth_in = im_depth.astype(np.float32)
+
+    # Setting this flag to true will preprocess the depth image into three
+    # channels: x gradient, y gradient, and overall magnitude
+    using_depth_grad = False
+
+    if using_depth_grad:
+        depth_in[depth_in > 3000] = 3000
+        depth_in[depth_in == 0] = 3000
+        depth = np.zeros(depth_in.shape, dtype=np.float32)
+        depth = cv2.normalize(depth_in, depth, alpha=0, beta=1, norm_type=cv2.NORM_MINMAX)
+        grad_x = cv2.Sobel(depth, -1, 1, 0, ksize=3)
+        abs_grad_x = cv2.convertScaleAbs(grad_x, alpha=255)
+        grad_y = cv2.Sobel(depth, -1, 0, 1, ksize=3)
+        abs_grad_y = cv2.convertScaleAbs(grad_y, alpha=255)
+        grad = cv2.addWeighted(abs_grad_x, 0.5, abs_grad_y, 0.5, 0, dtype=-1)
+
+        depth = cv2.merge([abs_grad_x, abs_grad_y, grad])
+    else:
+        depth = depth_in / depth_in.max() * 255
+        depth = np.tile(depth[:, :, np.newaxis], (1, 1, 3))
+        depth -= pixel_means
 
     # Create a blob to hold the input images
     blob = utils.blob.im_to_blob(rgb, 3)
@@ -79,7 +97,7 @@ class HandSegmentation(object):
         #    labels = utils.blob.unpad_im(labels, 16)
         #    return labels
         labels, probs = self.im_segment_single_frame(rgb, depth)
-        return labels
+        return np.uint8(labels), probs
 
     def im_segment_single_frame(self, im, im_depth):
         num_classes = 2

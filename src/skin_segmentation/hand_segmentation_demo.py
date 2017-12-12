@@ -31,7 +31,7 @@ class Demo(object):
         
         rgb_cv = self._cv_bridge.imgmsg_to_cv2(rgb, 'bgr8')
         depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
-        labels = np.uint8(self._hand_segmentation.segment(rgb_cv, depth_cv))
+        labels, probs = self._hand_segmentation.segment(rgb_cv, depth_cv)
 
         kernel = np.ones((3, 3), np.uint8)
         cv2.erode(labels, kernel, labels)
