@@ -24,32 +24,49 @@ class Server(object):
             'hand_demo_overlay_rgb', sensor_msgs.msg.Image, queue_size=1)
 
         # Set to True to enable the visualization of the depth cloud.
-        self.is_publishing_depth_cloud = False
+        self.is_publishing_depth_cloud = True
 
         if self.is_publishing_depth_cloud:
             self._rgb_pub = rospy.Publisher(
-                '/camera/rgb/image_rect_color',
+                '/hand_segmentation_service/color/image',
                 sensor_msgs.msg.Image,
                 queue_size=1)
             self._depth_pub = rospy.Publisher(
-                '/camera/depth_registered/hw_registered/image_rect',
+                '/hand_segmentation_service/depth/image',
                 sensor_msgs.msg.Image,
                 queue_size=1)
             self._info_pub = rospy.Publisher(
-                '/camera/depth_registered/hw_registered/camera_info',
+                '/hand_segmentation_service/depth/camera_info',
                 sensor_msgs.msg.CameraInfo,
                 queue_size=1)
-            self._info = sensor_msgs.msg.CameraInfo()
-            self._info.header.frame_id = 'camera_rgb_optical_frame'
-            self._info.height = 424
-            self._info.width = 512
-            self._info.D = [0.101168, -0.277766, 0, 0, 0.0924009]
-            self._info.distortion_model = 'plumb_bob'
-            self._info.K = [364.426, 0, 262.546, 0, 364.426, 203.758, 0, 0, 1]
-            self._info.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]
-            self._info.P = [
-                364.426, 0, 262.546, 0, 0, 364.426, 203.758, 0, 0, 0, 1, 0
-            ]
+            #self._info = self._xtion_camera_info()
+            self._info = self._kinect360_camera_info()
+
+    def _xtion_camera_info(self):
+        info = sensor_msgs.msg.CameraInfo()
+        info.header.frame_id = 'camera_rgb_optical_frame'
+        info.height = 424
+        info.width = 512
+        info.D = [0.101168, -0.277766, 0, 0, 0.0924009]
+        info.distortion_model = 'plumb_bob'
+        info.K = [364.426, 0, 262.546, 0, 364.426, 203.758, 0, 0, 1]
+        info.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+        info.P = [
+            364.426, 0, 262.546, 0, 0, 364.426, 203.758, 0, 0, 0, 1, 0
+        ]
+        return info
+
+    def _kinect360_camera_info(self):
+        info = sensor_msgs.msg.CameraInfo()
+        info.header.frame_id = 'head_mount_kinect_rgb_optical_frame'
+        info.height = 480
+        info.width = 640
+        info.D = [0.0, 0.0, 0.0, 0.0, 0.0]
+        info.distortion_model = 'plumb_bob'
+        info.K = [525.0, 0.0, 319.5, 0.0, 525.0, 239.5, 0.0, 0.0, 1.0]
+        info.R = [1, 0, 0, 0, 1, 0, 0, 0, 1]
+        info.P = [525.0, 0.0, 319.5, 0.0, 0.0, 525.0, 239.5, 0.0, 0.0, 0.0, 1.0, 0.0]
+        return info
 
     def callback(self, request):
         rgb = request.rgb
@@ -57,18 +74,17 @@ class Server(object):
 
         response = skin_srvs.PredictHandsResponse()
 
-        if rgb.encoding != 'rgb8':
-            rospy.logerr_throttle(
-                1, 'Unsupported RGB type. Expected rgb8, get {}'.format(
-                    rgb.encoding))
-            return response
-
         # Kinect One / Nerf data logic
         # Normally, we expect 32FC1 to contain the distance in meters.
         # However, the recorded data from the Nerf experiments, which uses a Kinect
         # One, gives millimeters as 32FC1.
-        if depth.encoding == '32FC1':
+        is_nerf = False
+        if depth.encoding == '32FC1' and is_nerf:
             depth_32 = self._cv_bridge.imgmsg_to_cv2(depth) + 0.5
+            depth_cv = np.array(depth_32, dtype=np.uint16)
+        elif depth.encoding == '32FC1':
+            # Standard Kinect 360: depth is 32FC1 as meters, which we conver to 16-bit millimeters
+            depth_32 = self._cv_bridge.imgmsg_to_cv2(depth) * 1000
             depth_cv = np.array(depth_32, dtype=np.uint16)
         elif depth.encoding == '16UC1':
             depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
@@ -79,25 +95,31 @@ class Server(object):
             return response
 
         rgb_cv = self._cv_bridge.imgmsg_to_cv2(rgb, 'bgr8')
-        labels = np.uint8(
-            self._hand_segmentation.segment(rgb_cv, depth_cv)) * 255
+        labels, probs = self._hand_segmentation.segment(rgb_cv, depth_cv)
 
-        #kernel = np.ones((3, 3), np.uint8)
-        #cv2.erode(labels, kernel, labels)
+        kernel = np.ones((3, 3), np.uint8)
+        cv2.erode(labels, kernel, labels)
 
         now = rospy.Time.now()
         response.prediction = self._cv_bridge.cv2_to_imgmsg(labels)
         response.prediction.header.stamp = now
         response.prediction.header.frame_id = rgb.header.frame_id
         response.prediction.encoding = 'mono8'
-        self._label_pub.publish(response.prediction)
+
+        idx = (labels == 1)
+        rgb_cv[idx] = [0, 0, 255]
+        overlay_msg = self._cv_bridge.cv2_to_imgmsg(rgb_cv)
+        overlay_msg.header.stamp = rospy.Time.now()
+        overlay_msg.header.frame_id = rgb.header.frame_id
+        overlay_msg.encoding = 'bgr8'
+        self._label_pub.publish(overlay_msg)
 
         if self.is_publishing_depth_cloud:
             rgb.header.stamp = now
-            rgb.header.frame_id = 'camera_rgb_optical_frame'
+            rgb.header.frame_id = self._info.header.frame_id
             depth_msg = self._cv_bridge.cv2_to_imgmsg(depth_cv)
             depth_msg.header.stamp = now
-            depth_msg.header.frame_id = 'camera_rgb_optical_frame'
+            depth_msg.header.frame_id = self._info.header.frame_id
             self._info.header.stamp = now
             self._rgb_pub.publish(rgb)
             self._depth_pub.publish(depth_msg)

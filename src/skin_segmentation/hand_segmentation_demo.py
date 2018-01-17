@@ -23,14 +23,18 @@ class Demo(object):
         self._overlay_pub = overlay_pub
 
     def callback(self, rgb, depth):
-        if depth.encoding != '16UC1':
+        if depth.encoding == '32FC1':
+            depth_32 = self._cv_bridge.imgmsg_to_cv2(depth) * 1000
+            depth_cv = np.array(depth_32, dtype=np.uint16)
+        elif depth.encoding == '16UC1':
+            depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
+        else:
             rospy.logerr_throttle(
-                1, 'Unsupported depth type. Expected 16UC1, got {}'.format(
+                1, 'Unsupported depth type. Expected 16UC1 or 32FC1, got {}'.format(
                     depth.encoding))
             return
-        
+
         rgb_cv = self._cv_bridge.imgmsg_to_cv2(rgb, 'bgr8')
-        depth_cv = self._cv_bridge.imgmsg_to_cv2(depth)
         labels, probs = self._hand_segmentation.segment(rgb_cv, depth_cv)
 
         kernel = np.ones((3, 3), np.uint8)
@@ -65,7 +69,8 @@ def main():
     depth_sub = message_filters.Subscriber('depth_registered',
                                            sensor_msgs.msg.Image, queue_size=2)
     queue_size = 1
-    slop_seconds = 0.005
+    #slop_seconds = 0.005
+    slop_seconds = 0.025
     sync = message_filters.ApproximateTimeSynchronizer(
         [rgb_sub, depth_sub], queue_size, slop_seconds)
 
