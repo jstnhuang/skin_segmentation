@@ -3,10 +3,10 @@
 #include <termios.h>
 #include <unistd.h>
 #include <iostream>
+#include <sstream>
 #include <string>
 
 #include "Eigen/Dense"
-#include "absl/strings/str_join.h"
 #include "ros/ros.h"
 #include "rosbag/bag.h"
 #include "rosbag/view.h"
@@ -122,7 +122,15 @@ void SkeletonEvaluator::Process(const sensor_msgs::ImageConstPtr& rgb,
     stats[i + 1] = offset.norm();
   }
 
-  std::cout << absl::StrJoin(stats, ",") << std::endl;
+  std::stringstream ss;
+  for (size_t i = 0; i < stats.size(); ++i) {
+    ss << stats[i];
+    if (i != stats.size() - 1) {
+      ss << ",";
+    }
+  }
+
+  std::cout << ss.str() << std::endl;
   if (skel_labels_ != NULL) {
     ++skel_labels_it_;
   }
