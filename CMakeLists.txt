@@ -251,6 +251,13 @@ target_link_libraries(skin_segmentation_thresholding
 )
 
 ## Declare a C++ executable
+add_executable(skin_segmentation_base_rate_main src/base_rate_main.cpp)
+set_target_properties(skin_segmentation_base_rate_main PROPERTIES OUTPUT_NAME base_rate PREFIX "")
+add_dependencies(skin_segmentation_base_rate_main ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(skin_segmentation_base_rate_main
+  ${catkin_LIBRARIES}
+)
+
 add_executable(skin_segmentation_box_interactive_marker_demo src/box_interactive_marker_demo.cpp)
 set_target_properties(skin_segmentation_box_interactive_marker_demo PROPERTIES OUTPUT_NAME box_interactive_marker_demo PREFIX "")
 add_dependencies(skin_segmentation_box_interactive_marker_demo ${skin_segmentation_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
