@@ -2,7 +2,6 @@
 Pixel-level hand segmentation using a thermal camera for data labeling.
 
 - [Link to the most recently trained model](https://drive.google.com/file/d/1aQzr1E7bpOR3kuk7F8C_UBNYlyPSBLdX/view?usp=sharing)
-- If you are interested in the dataset, please email Justin Huang (jstn@cs.washington.edu)
 
 ## Data collection procedure
 - [ ] Plug in thermal camera
